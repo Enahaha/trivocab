@@ -39,6 +39,7 @@ COMMON_OPTS=(
   --java-options '-Dapp.public-url=http://localhost:8090'
   --java-options '-Dserver.port=8090'
   --java-options '-Dapp.auth.expose-reset-code=false'
+  --java-options '-Dapp.allow-shutdown=true'
 )
 
 rm -rf "$APP_DIR"

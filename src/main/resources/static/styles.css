@@ -722,6 +722,17 @@ body.auth-pending .app-shell {
   background: var(--surface-raised);
 }
 
+.button-danger {
+  margin-top: 10px;
+  border-color: color-mix(in srgb, #c0392b 48%, var(--line));
+  color: #c0392b;
+  background: transparent;
+}
+
+.button-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #c0392b 8%, transparent);
+}
+
 .hero-actions .button-ghost {
   border-color: rgba(255, 255, 255, .18);
   color: var(--hero-ink);

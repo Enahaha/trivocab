@@ -43,6 +43,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
     private final boolean exposeResetCode;
+    private final boolean allowShutdown;
     private final long resetCodeTtlMinutes;
     private final SecureRandom secureRandom = new SecureRandom();
     private final String dummyPasswordHash;
@@ -52,12 +53,14 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             Clock clock,
             @Value("${app.auth.expose-reset-code:false}") boolean exposeResetCode,
+            @Value("${app.allow-shutdown:false}") boolean allowShutdown,
             @Value("${app.auth.reset-code-ttl-minutes:10}") long resetCodeTtlMinutes
     ) {
         this.authMapper = authMapper;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
         this.exposeResetCode = exposeResetCode;
+        this.allowShutdown = allowShutdown;
         this.resetCodeTtlMinutes = Math.max(1, Math.min(60, resetCodeTtlMinutes));
         this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
@@ -240,6 +243,7 @@ public class AuthService {
                 user.getEmail(),
                 user.getRole(),
                 user.getSelectedBookId(),
+                allowShutdown,
                 csrfToken
         );
     }

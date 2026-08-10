@@ -161,6 +161,7 @@
     meRole: document.querySelector("#meRole"),
     meBookName: document.querySelector("#meBookName"),
     meLogoutButton: document.querySelector("#meLogoutButton"),
+    meQuitButton: document.querySelector("#meQuitButton"),
     meTotalMinutes: document.querySelector("#meTotalMinutes"),
     meTotalLearned: document.querySelector("#meTotalLearned"),
     meStreak: document.querySelector("#meStreak"),
@@ -238,6 +239,7 @@
     elements.messageForm.addEventListener("submit", submitMessage);
     elements.refreshMessagesButton.addEventListener("click", () => loadMessages(true));
     elements.meLogoutButton.addEventListener("click", logout);
+    elements.meQuitButton.addEventListener("click", quitApp);
     elements.checkinButton.addEventListener("click", submitCheckin);
     elements.calendarPrev.addEventListener("click", () => shiftCalendar(-1));
     elements.calendarNext.addEventListener("click", () => shiftCalendar(1));
@@ -373,9 +375,24 @@
     setText(elements.meEmail, cleanText(user.email) || "未填写邮箱");
     const role = String(user.role || "USER").toUpperCase();
     setText(elements.meRole, role === "ADMIN" ? "管理员" : "普通用户");
+    elements.meQuitButton.hidden = !Boolean(user.allowShutdown);
     const books = asArray(state.selection?.books || state.books);
     const book = books.find((item) => Number(item.id) === Number(state.bookId)) || books[0];
     setText(elements.meBookName, cleanText(book?.name) || state.dashboard?.bookName || "…");
+  }
+
+  async function quitApp() {
+    if (!window.confirm("确定要退出 TrVocab 应用吗？退出后需要重新双击应用才能启动。")) return;
+    elements.meQuitButton.disabled = true;
+    elements.meQuitButton.textContent = "正在退出…";
+    try {
+      await apiRequest("/system/shutdown", { method: "POST" });
+      showToast("应用正在退出…");
+    } catch (error) {
+      elements.meQuitButton.disabled = false;
+      elements.meQuitButton.textContent = "退出应用";
+      showToast(readError(error, "退出失败，请稍后重试"), "error");
+    }
   }
 
   function formatMinutes(totalMinutes) {

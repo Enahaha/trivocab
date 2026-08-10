@@ -31,7 +31,7 @@ class SystemShutdownApiIntegrationTests {
     }
 
     @Test
-    void shutdownIsRejectedWhenNotEnabledAndForNonAdmins() throws Exception {
+    void shutdownIsRejectedWhenFeatureIsDisabled() throws Exception {
         MvcResult adminLogin = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"Enahaha\",\"password\":\"123456\"}"))

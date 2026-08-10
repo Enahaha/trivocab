@@ -7,7 +7,7 @@ ARCH="${1:?usage: package-macos.sh arm64|x64}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 JAR="$ROOT/target/ielts-vocabulary-0.1.0-SNAPSHOT.jar"
 ICON="$ROOT/release/TrVocab.icns"
-VERSION="1.0.0"
+VERSION="1.1.0"
 
 case "$ARCH" in
   arm64)

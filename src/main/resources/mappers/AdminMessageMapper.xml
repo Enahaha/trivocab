@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.AdminMessageMapper">
+
+    <resultMap id="adminMessageRowMap" type="com.trivocab.ielts.domain.AdminMessageRow">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="displayName" column="display_name"/>
+        <result property="email" column="email"/>
+        <result property="content" column="content"/>
+        <result property="status" column="status"/>
+        <result property="adminReply" column="admin_reply"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="messageColumns">
+        m.id,
+        m.user_id,
+        u.username,
+        u.display_name,
+        u.email,
+        m.content,
+        m.status,
+        m.admin_reply,
+        m.created_at,
+        m.updated_at
+    </sql>
+
+    <sql id="messageFilter">
+        <if test="status != null and status != ''">
+            AND m.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOWER(u.username) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(u.display_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(COALESCE(u.email, '')) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(m.content) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+            )
+        </if>
+    </sql>
+
+    <select id="findPage" resultMap="adminMessageRowMap">
+        SELECT <include refid="messageColumns"/>
+        FROM messages m
+        JOIN users u ON u.id = m.user_id
+        WHERE 1 = 1
+        <include refid="messageFilter"/>
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM messages m
+        JOIN users u ON u.id = m.user_id
+        WHERE 1 = 1
+        <include refid="messageFilter"/>
+    </select>
+
+    <select id="findById" resultMap="adminMessageRowMap">
+        SELECT <include refid="messageColumns"/>
+        FROM messages m
+        JOIN users u ON u.id = m.user_id
+        WHERE m.id = #{messageId}
+    </select>
+
+    <update id="update">
+        UPDATE messages
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateReply">admin_reply = #{adminReply},</if>
+            updated_at = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{messageId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM messages WHERE id = #{messageId}
+    </delete>
+</mapper>

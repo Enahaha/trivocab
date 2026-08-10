@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/trivocab?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&useSSL=false}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:trivocab}
+    password: ${DB_PASSWORD:trivocab}
+  sql:
+    init:
+      mode: never
+
+app:
+  database-bootstrap: true
+  auth:
+    expose-reset-code: false

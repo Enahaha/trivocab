@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="TriVocab 管理后台">
+  <meta name="theme-color" id="themeColorMeta" content="#edf0eb">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="TriVocab 管理">
+  <title>管理后台 | TriVocab</title>
+  <script>
+    (() => {
+      try {
+        const savedTheme = localStorage.getItem("trivocab-theme");
+        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = savedTheme === "dark" || savedTheme === "light"
+          ? savedTheme
+          : (systemDark ? "dark" : "light");
+      } catch (error) {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin.css?v=20260810-zoom">
+</head>
+<body class="admin-page auth-pending">
+  <div class="admin-boot" id="adminBoot" role="status" aria-live="polite">
+    <span class="admin-boot-mark" aria-hidden="true">T</span>
+    <strong id="adminBootTitle">正在进入管理后台</strong>
+    <p id="adminBootMessage">正在确认管理员权限…</p>
+    <button id="adminBootRetry" type="button" hidden>重新尝试</button>
+  </div>
+
+  <div class="admin-shell" id="adminShell" hidden inert>
+    <aside class="admin-sidebar" aria-label="管理导航">
+      <a class="admin-brand" href="#overview" data-admin-route="overview" aria-label="TriVocab 管理概览">
+        <span class="admin-brand-mark" aria-hidden="true">T</span>
+        <span><strong>TriVocab</strong><small>ADMIN CONSOLE</small></span>
+      </a>
+
+      <nav class="admin-nav">
+        <button class="is-active" type="button" data-admin-route="overview" aria-current="page"><span>概览</span><small>学习服务状态</small></button>
+        <button type="button" data-admin-route="users"><span>用户</span><small>账号与学习量</small></button>
+        <button type="button" data-admin-route="messages"><span>留言</span><small>状态与回复</small></button>
+        <button type="button" data-admin-route="books"><span>词书</span><small>增删改词书</small></button>
+        <button type="button" data-admin-route="words"><span>词库</span><small>三语词条维护</small></button>
+      </nav>
+
+      <div class="admin-account">
+        <span class="admin-avatar" id="adminAvatar" aria-hidden="true">管</span>
+        <span><strong id="adminDisplayName">管理员</strong><small id="adminUsername">admin</small></span>
+        <button id="adminLogoutButton" type="button">退出</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-topbar">
+        <button class="admin-mobile-brand" type="button" data-admin-route="overview"><span class="admin-brand-mark" aria-hidden="true">T</span><strong>TriVocab</strong></button>
+        <div class="admin-topbar-copy"><strong id="adminPageTitle">管理概览</strong><small id="adminPageDescription">查看平台的实际运行数据。</small></div>
+        <div class="admin-topbar-actions">
+          <button class="admin-theme-toggle" id="adminThemeToggle" type="button" aria-label="切换深色模式" aria-pressed="false"><span aria-hidden="true"><i></i></span><small id="adminThemeLabel">浅色</small></button>
+          <button class="admin-mobile-logout" id="adminMobileLogoutButton" type="button">退出</button>
+        </div>
+      </header>
+
+      <section class="admin-view is-active" data-admin-view="overview" aria-labelledby="overviewTitle">
+        <div class="admin-page-heading">
+          <div><h1 id="overviewTitle">管理概览</h1><p>查看平台用户、留言、词库和今日学习动态。</p></div>
+          <button class="admin-button admin-button-secondary" id="refreshAdminDashboard" type="button">刷新数据</button>
+        </div>
+        <div class="admin-inline-state" id="overviewState" role="status" aria-live="polite" hidden></div>
+        <div class="admin-metric-grid" id="adminMetricGrid" aria-busy="true">
+          <article class="admin-metric admin-metric-primary"><small>注册用户</small><strong id="adminTotalUsers">…</strong><span>全部学习账号</span></article>
+          <article class="admin-metric"><small>今日活跃用户</small><strong id="adminEnabledUsers">…</strong><span>今日有登录或学习</span></article>
+          <article class="admin-metric"><small>今日新留言</small><strong id="adminNewMessages">…</strong><span>今日提交的反馈</span></article>
+          <article class="admin-metric"><small>今日新用户</small><strong id="adminTotalMessages">…</strong><span>今日完成注册</span></article>
+          <article class="admin-metric admin-metric-wide"><small>词库规模</small><strong id="adminTotalWords">…</strong><span>雅思三语词条</span></article>
+          <article class="admin-metric admin-metric-wide"><small>今日学习记录</small><strong id="adminTodayReviews">…</strong><span>今日提交的单词结果</span></article>
+        </div>
+      </section>
+
+      <section class="admin-view" data-admin-view="users" aria-labelledby="usersTitle" hidden>
+        <div class="admin-page-heading"><div><h1 id="usersTitle">用户管理</h1><p>搜索账号，查看学习量，删除不再需要的普通用户。</p></div></div>
+        <form class="admin-toolbar" id="userSearchForm" role="search">
+          <div class="admin-search-field"><label for="userKeyword">搜索用户</label><input id="userKeyword" name="keyword" type="search" autocomplete="off" placeholder="用户名、显示名称或邮箱"></div>
+          <button class="admin-button admin-button-primary" type="submit">搜索</button>
+        </form>
+        <div class="admin-inline-state" id="usersState" role="status" aria-live="polite" hidden></div>
+        <div class="admin-table-wrap" id="usersTableWrap">
+          <table class="admin-table" aria-label="用户列表">
+            <thead><tr><th>用户</th><th>角色</th><th>学习单词</th><th>最后登录</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+          <div class="admin-empty" id="usersEmpty" hidden><strong>没有找到用户</strong><p>尝试更换搜索词。</p></div>
+        </div>
+        <nav class="admin-pagination" id="usersPagination" aria-label="用户列表分页"></nav>
+      </section>
+
+      <section class="admin-view" data-admin-view="messages" aria-labelledby="messagesTitle" hidden>
+        <div class="admin-page-heading"><div><h1 id="messagesTitle">留言管理</h1><p>阅读学习者反馈，记录处理状态并直接回复。</p></div></div>
+        <form class="admin-toolbar admin-toolbar-filter" id="messageFilterForm">
+          <div class="admin-search-field"><label for="messageKeyword">搜索留言</label><input id="messageKeyword" name="keyword" type="search" autocomplete="off" placeholder="用户或留言内容"></div>
+          <div class="admin-select-field"><label for="messageStatusFilter">状态</label><select id="messageStatusFilter" name="status"><option value="">全部状态</option><option value="NEW">新留言</option><option value="READ">已阅读</option><option value="REPLIED">已回复</option><option value="CLOSED">已关闭</option></select></div>
+          <button class="admin-button admin-button-primary" type="submit">筛选</button>
+        </form>
+        <div class="admin-inline-state" id="messagesState" role="status" aria-live="polite" hidden></div>
+        <div class="admin-message-list" id="adminMessageList" aria-busy="false"></div>
+        <div class="admin-empty" id="adminMessagesEmpty" hidden><strong>暂无匹配留言</strong><p>收到的反馈会显示在这里。</p></div>
+        <nav class="admin-pagination" id="messagesPagination" aria-label="留言列表分页"></nav>
+      </section>
+
+      <section class="admin-view" data-admin-view="books" aria-labelledby="booksTitle" hidden>
+        <div class="admin-page-heading">
+          <div><h1 id="booksTitle">词书管理</h1><p>添加、修改或删除词书；删除词书会同时移除其单词与相关学习记录。</p></div>
+          <button class="admin-button admin-button-primary" id="addBookButton" type="button">新增词书</button>
+        </div>
+        <div class="admin-inline-state" id="booksState" role="status" aria-live="polite" hidden></div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" aria-label="词书列表">
+            <thead><tr><th>ID</th><th>编码</th><th>名称</th><th>说明</th><th>词数</th><th><span class="sr-only">操作</span></th></tr></thead>
+            <tbody id="adminBooksTableBody"></tbody>
+          </table>
+          <div class="admin-empty" id="adminBooksEmpty" hidden><strong>还没有词书</strong><p>新增一本词书，再到“词库”中添加单词。</p></div>
+        </div>
+      </section>
+
+      <section class="admin-view" data-admin-view="words" aria-labelledby="wordsTitle" hidden>
+        <div class="admin-page-heading">
+          <div><h1 id="wordsTitle">词库管理</h1><p>搜索并维护英文单词、中韩释义和双语例句。</p></div>
+          <button class="admin-button admin-button-primary" id="addWordButton" type="button">新增单词</button>
+        </div>
+        <form class="admin-toolbar" id="wordSearchForm" role="search">
+          <div class="admin-search-field"><label for="adminWordKeyword">搜索词库</label><input id="adminWordKeyword" name="keyword" type="search" autocomplete="off" placeholder="Word ID、英文单词、中文或韩语释义"></div>
+          <div class="admin-select-field"><label for="adminBookFilter">词书</label><select id="adminBookFilter" name="bookId"><option value="">全部词书</option></select></div>
+          <button class="admin-button admin-button-primary" type="submit">搜索</button>
+        </form>
+        <div class="admin-inline-state" id="wordsState" role="status" aria-live="polite" hidden></div>
+        <div class="admin-table-wrap">
+          <table class="admin-table admin-word-table" aria-label="词库列表">
+            <thead><tr><th>Word ID</th><th>顺序</th><th>单词</th><th>中文释义</th><th>한국어 뜻</th><th>阶段</th><th><span class="sr-only">操作</span></th></tr></thead>
+            <tbody id="adminWordsTableBody"></tbody>
+          </table>
+          <div class="admin-empty" id="adminWordsEmpty" hidden><strong>没有找到词条</strong><p>更换搜索词，或新增一个单词。</p></div>
+        </div>
+        <nav class="admin-pagination" id="wordsPagination" aria-label="词库列表分页"></nav>
+      </section>
+
+      <footer class="site-footer">
+        <span>制作人：周子皓</span>
+        <span class="site-footer-sep" aria-hidden="true">·</span>
+        <span>版本：v0.1.0</span>
+      </footer>
+    </main>
+
+    <nav class="admin-mobile-nav" aria-label="移动端管理导航">
+      <button class="is-active" type="button" data-admin-route="overview">概览</button>
+      <button type="button" data-admin-route="users">用户</button>
+      <button type="button" data-admin-route="messages">留言</button>
+      <button type="button" data-admin-route="books">词书</button>
+      <button type="button" data-admin-route="words">词库</button>
+    </nav>
+  </div>
+
+  <div class="admin-modal-backdrop" id="confirmModal" hidden>
+    <section class="admin-modal admin-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <span class="admin-modal-mark" aria-hidden="true">!</span>
+      <h2 id="confirmTitle">确认删除</h2>
+      <p id="confirmMessage">删除后无法恢复。</p>
+      <div class="admin-modal-actions"><button class="admin-button admin-button-secondary" id="cancelConfirmButton" type="button">取消</button><button class="admin-button admin-button-danger" id="confirmDeleteButton" type="button">确认删除</button></div>
+    </section>
+  </div>
+
+  <div class="admin-modal-backdrop" id="wordEditorModal" hidden>
+    <section class="admin-modal admin-word-editor" role="dialog" aria-modal="true" aria-labelledby="wordEditorTitle">
+      <div class="admin-modal-heading"><div><h2 id="wordEditorTitle">新增单词</h2><p>填写英文词条、中韩释义和例句。</p></div><button id="closeWordEditorButton" type="button" aria-label="关闭单词编辑器">关闭</button></div>
+      <form id="wordEditorForm" novalidate>
+        <input id="wordEditorId" name="id" type="hidden">
+        <input name="koreanEquivalents" type="hidden">
+        <input name="koreanDefinition" type="hidden">
+        <input name="koreanSourceFlag" type="hidden">
+        <input name="sourceName" type="hidden">
+        <input name="sourceUrl" type="hidden">
+        <div class="admin-form-grid admin-form-grid-three">
+          <div class="admin-field"><label for="wordBookSelect">词书</label><select id="wordBookSelect" name="bookId" required><option value="">请选择词书</option></select></div>
+          <div class="admin-field"><label for="wordBusinessId">Word ID</label><input id="wordBusinessId" name="wordId" type="text" maxlength="64" placeholder="例如 IELTS-0120"></div>
+          <div class="admin-field"><label for="wordPriorityRank">优先顺序</label><input id="wordPriorityRank" name="priorityRank" type="number" min="1" required placeholder="例如 120"></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="admin-field"><label for="wordPartOfSpeech">词性</label><input id="wordPartOfSpeech" name="partOfSpeech" type="text" maxlength="30" placeholder="例如 n. / v."></div>
+          <div class="admin-field"><label for="wordSpelling">英文单词</label><input id="wordSpelling" name="word" type="text" lang="en" required maxlength="100" placeholder="输入单词"></div>
+          <div class="admin-field"><label for="wordPhonetic">音标</label><input id="wordPhonetic" name="phonetic" type="text" maxlength="100" placeholder="不需要外层斜线"></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="admin-field"><label for="wordChineseMeaning">中文释义</label><textarea id="wordChineseMeaning" name="chineseMeaning" rows="3" required maxlength="1500" placeholder="输入中文释义"></textarea></div>
+          <div class="admin-field"><label for="wordKoreanMeaning">한국어 뜻</label><textarea id="wordKoreanMeaning" name="koreanMeaning" rows="3" required maxlength="1500" placeholder="한국어 뜻을 입력하세요"></textarea></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="admin-field"><label for="wordEnglishExample">英文例句</label><textarea id="wordEnglishExample" name="englishExample" rows="3" maxlength="2000" placeholder="输入英文例句"></textarea></div>
+          <div class="admin-field"><label for="wordKoreanExample">한국어 예문</label><textarea id="wordKoreanExample" name="koreanExample" rows="3" maxlength="2000" placeholder="한국어 예문을 입력하세요"></textarea></div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="admin-field"><label for="wordLearningStage">学习阶段</label><input id="wordLearningStage" name="learningStage" type="text" maxlength="100" placeholder="例如：第一阶段·高频基础"></div>
+          <div class="admin-field"><label for="wordSelectionBasis">选词依据</label><input id="wordSelectionBasis" name="selectionBasis" type="text" maxlength="200" placeholder="例如：雅思高频词"></div>
+        </div>
+        <div class="admin-inline-state" id="wordEditorStatus" role="status" aria-live="polite" hidden></div>
+        <div class="admin-modal-actions"><button class="admin-button admin-button-secondary" id="cancelWordEditorButton" type="button">取消</button><button class="admin-button admin-button-primary" type="submit">保存单词</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="admin-modal-backdrop" id="bookEditorModal" hidden>
+    <section class="admin-modal admin-word-editor" role="dialog" aria-modal="true" aria-labelledby="bookEditorTitle">
+      <div class="admin-modal-heading"><div><h2 id="bookEditorTitle">新增词书</h2><p>填写词书编码、名称和说明。</p></div><button id="closeBookEditorButton" type="button" aria-label="关闭词书编辑器">关闭</button></div>
+      <form id="bookEditorForm" novalidate>
+        <input id="bookEditorId" name="id" type="hidden">
+        <div class="admin-form-grid">
+          <div class="admin-field"><label for="bookCode">词书编码</label><input id="bookCode" name="code" type="text" maxlength="80" required pattern="[A-Za-z0-9_-]+" placeholder="例如 MY_BOOK_1000"></div>
+          <div class="admin-field"><label for="bookName">词书名称</label><input id="bookName" name="name" type="text" maxlength="160" required placeholder="例如 我的雅思词书"></div>
+        </div>
+        <div class="admin-field"><label for="bookDescription">说明</label><textarea id="bookDescription" name="description" rows="3" maxlength="1000" placeholder="词书简介（可选）"></textarea></div>
+        <div class="admin-inline-state" id="bookEditorStatus" role="status" aria-live="polite" hidden></div>
+        <div class="admin-modal-actions"><button class="admin-button admin-button-secondary" id="cancelBookEditorButton" type="button">取消</button><button class="admin-button admin-button-primary" type="submit">保存词书</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="admin-toast-region" id="adminToastRegion" aria-live="polite" aria-atomic="true"></div>
+  <script src="/admin.js?v=20260810-zoom" defer></script>
+</body>
+</html>

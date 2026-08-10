@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.UserBookMapper">
+
+    <resultMap id="settingMap" type="com.trivocab.ielts.domain.UserBookSettingsRow">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="bookId" column="book_id"/>
+        <result property="dailyGoal" column="daily_goal"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findSelectedBookId" resultType="long">
+        SELECT selected_book_id
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <select id="findDefaultDailyGoal" resultType="int">
+        SELECT daily_goal
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <select id="userExists" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) &gt; 0 THEN TRUE ELSE FALSE END
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updateSelectedBook">
+        UPDATE users
+        SET selected_book_id = #{bookId}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <select id="findSetting" resultMap="settingMap">
+        SELECT id, user_id, book_id, daily_goal, created_at, updated_at
+        FROM user_book_settings
+        WHERE user_id = #{userId} AND book_id = #{bookId}
+    </select>
+
+    <insert id="insertSetting" parameterType="com.trivocab.ielts.domain.UserBookSettingsRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_book_settings (user_id, book_id, daily_goal)
+        VALUES (#{userId}, #{bookId}, #{dailyGoal})
+    </insert>
+
+    <update id="updateSettingDailyGoal">
+        UPDATE user_book_settings
+        SET daily_goal = #{dailyGoal}, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId} AND book_id = #{bookId}
+    </update>
+
+    <delete id="deleteByBook">
+        DELETE FROM user_book_settings WHERE book_id = #{bookId}
+    </delete>
+</mapper>

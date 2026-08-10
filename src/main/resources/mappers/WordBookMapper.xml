@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.WordBookMapper">
+
+    <resultMap id="bookMap" type="com.trivocab.ielts.domain.WordBookRow">
+        <id property="id" column="id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="totalWords" column="total_words"/>
+        <result property="learnedWords" column="learned_words"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="bookMap">
+        SELECT wb.id,
+               wb.code,
+               wb.name,
+               wb.description,
+               wb.total_words,
+               (
+                   SELECT COUNT(*)
+                   FROM user_word_progress p
+                   JOIN words w ON w.id = p.word_id
+                   WHERE p.user_id = #{userId}
+                     AND w.book_id = wb.id
+               ) AS learned_words
+        FROM word_books wb
+        ORDER BY wb.id
+    </select>
+
+    <select id="findById" resultMap="bookMap">
+        SELECT wb.id,
+               wb.code,
+               wb.name,
+               wb.description,
+               wb.total_words,
+               (
+                   SELECT COUNT(*)
+                   FROM user_word_progress p
+                   JOIN words w ON w.id = p.word_id
+                   WHERE p.user_id = #{userId}
+                     AND w.book_id = wb.id
+               ) AS learned_words
+        FROM word_books wb
+        WHERE wb.id = #{bookId}
+    </select>
+</mapper>

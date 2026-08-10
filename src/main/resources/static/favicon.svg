@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="TriVocab">
+  <rect width="64" height="64" rx="18" fill="#1e4c39"/>
+  <rect x="7" y="7" width="50" height="50" rx="13" fill="none" stroke="#dce9e0" stroke-opacity=".45"/>
+  <text x="32" y="43" fill="#f4f8f5" font-family="Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle">T</text>
+</svg>

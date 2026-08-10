@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.WordMapper">
+
+    <resultMap id="wordRowMap" type="com.trivocab.ielts.domain.WordRow">
+        <id property="id" column="id"/>
+        <result property="bookId" column="book_id"/>
+        <result property="priorityRank" column="priority_rank"/>
+        <result property="word" column="word"/>
+        <result property="phonetic" column="phonetic"/>
+        <result property="partOfSpeech" column="part_of_speech"/>
+        <result property="chineseMeaning" column="chinese_meaning"/>
+        <result property="koreanMeaning" column="korean_meaning"/>
+        <result property="koreanEquivalents" column="korean_equivalents"/>
+        <result property="koreanDefinition" column="korean_definition"/>
+        <result property="englishExample" column="english_example"/>
+        <result property="koreanExample" column="korean_example"/>
+        <result property="learningStage" column="learning_stage"/>
+        <result property="selectionBasis" column="selection_basis"/>
+        <result property="progressStatus" column="progress_status"/>
+    </resultMap>
+
+    <sql id="wordColumns">
+        w.id,
+        w.book_id,
+        w.priority_rank,
+        w.word,
+        w.phonetic,
+        w.part_of_speech,
+        w.chinese_meaning,
+        w.korean_meaning,
+        w.korean_equivalents,
+        w.korean_definition,
+        w.english_example,
+        w.korean_example,
+        w.learning_stage,
+        w.selection_basis,
+        COALESCE(p.status, 'NEW') AS progress_status
+    </sql>
+
+    <select id="findPage" resultMap="wordRowMap">
+        SELECT <include refid="wordColumns"/>
+        FROM words w
+        LEFT JOIN user_word_progress p
+            ON p.word_id = w.id AND p.user_id = #{userId}
+        WHERE w.book_id = #{bookId}
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOWER(w.word) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR w.chinese_meaning LIKE CONCAT('%', #{keyword}, '%')
+                OR w.korean_meaning LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY w.priority_rank, w.id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByBook" resultType="long">
+        SELECT COUNT(*)
+        FROM words w
+        WHERE w.book_id = #{bookId}
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOWER(w.word) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR w.chinese_meaning LIKE CONCAT('%', #{keyword}, '%')
+                OR w.korean_meaning LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </select>
+
+    <select id="findById" resultMap="wordRowMap">
+        SELECT <include refid="wordColumns"/>
+        FROM words w
+        LEFT JOIN user_word_progress p
+            ON p.word_id = w.id AND p.user_id = #{userId}
+        WHERE w.id = #{wordId}
+    </select>
+
+    <select id="findDueWords" resultMap="wordRowMap">
+        SELECT <include refid="wordColumns"/>
+        FROM words w
+        JOIN user_word_progress p
+            ON p.word_id = w.id AND p.user_id = #{userId}
+        WHERE w.book_id = #{bookId}
+          AND p.next_review_at &lt;= #{now}
+          AND p.status &lt;&gt; 'MASTERED'
+        ORDER BY p.next_review_at, w.priority_rank, w.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="findNewWords" resultMap="wordRowMap">
+        SELECT <include refid="wordColumns"/>
+        FROM words w
+        LEFT JOIN user_word_progress p
+            ON p.word_id = w.id AND p.user_id = #{userId}
+        WHERE w.book_id = #{bookId}
+          AND p.id IS NULL
+        ORDER BY w.priority_rank, w.id
+        LIMIT #{limit}
+    </select>
+</mapper>

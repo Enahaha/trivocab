@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.AdminWordMapper">
+
+    <resultMap id="adminWordRowMap" type="com.trivocab.ielts.domain.AdminWordRow">
+        <id property="id" column="id"/>
+        <result property="wordId" column="word_id"/>
+        <result property="bookId" column="book_id"/>
+        <result property="bookName" column="book_name"/>
+        <result property="priorityRank" column="priority_rank"/>
+        <result property="word" column="word"/>
+        <result property="phonetic" column="phonetic"/>
+        <result property="partOfSpeech" column="part_of_speech"/>
+        <result property="chineseMeaning" column="chinese_meaning"/>
+        <result property="koreanMeaning" column="korean_meaning"/>
+        <result property="koreanEquivalents" column="korean_equivalents"/>
+        <result property="koreanDefinition" column="korean_definition"/>
+        <result property="koreanSourceFlag" column="korean_source_flag"/>
+        <result property="englishExample" column="english_example"/>
+        <result property="koreanExample" column="korean_example"/>
+        <result property="learningStage" column="learning_stage"/>
+        <result property="selectionBasis" column="selection_basis"/>
+        <result property="sourceName" column="source_name"/>
+        <result property="sourceUrl" column="source_url"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="wordColumns">
+        w.id,
+        w.word_id,
+        w.book_id,
+        wb.name AS book_name,
+        w.priority_rank,
+        w.word,
+        w.phonetic,
+        w.part_of_speech,
+        w.chinese_meaning,
+        w.korean_meaning,
+        w.korean_equivalents,
+        w.korean_definition,
+        w.korean_source_flag,
+        w.english_example,
+        w.korean_example,
+        w.learning_stage,
+        w.selection_basis,
+        w.source_name,
+        w.source_url,
+        w.created_at
+    </sql>
+
+    <sql id="wordFilter">
+        <if test="bookId != null">
+            AND w.book_id = #{bookId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOWER(w.word) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(w.word_id) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(w.chinese_meaning) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(w.korean_meaning) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+            )
+        </if>
+    </sql>
+
+    <select id="findPage" resultMap="adminWordRowMap">
+        SELECT <include refid="wordColumns"/>
+        FROM words w
+        JOIN word_books wb ON wb.id = w.book_id
+        WHERE 1 = 1
+        <include refid="wordFilter"/>
+        ORDER BY w.book_id, w.priority_rank, w.id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM words w
+        WHERE 1 = 1
+        <include refid="wordFilter"/>
+    </select>
+
+    <select id="findById" resultMap="adminWordRowMap">
+        SELECT <include refid="wordColumns"/>
+        FROM words w
+        JOIN word_books wb ON wb.id = w.book_id
+        WHERE w.id = #{wordId}
+    </select>
+
+    <select id="bookExists" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) &gt; 0 THEN TRUE ELSE FALSE END
+        FROM word_books
+        WHERE id = #{bookId}
+    </select>
+
+    <select id="bookCode" resultType="string">
+        SELECT code
+        FROM word_books
+        WHERE id = #{bookId}
+    </select>
+
+    <insert id="insert" parameterType="com.trivocab.ielts.domain.AdminWordRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO words (
+            word_id, book_id, priority_rank, word, phonetic, part_of_speech,
+            chinese_meaning, korean_meaning, korean_equivalents, korean_definition,
+            korean_source_flag, english_example, korean_example, learning_stage,
+            selection_basis, source_name, source_url
+        ) VALUES (
+            #{wordId}, #{bookId}, #{priorityRank}, #{word}, #{phonetic}, #{partOfSpeech},
+            #{chineseMeaning}, #{koreanMeaning}, #{koreanEquivalents}, #{koreanDefinition},
+            #{koreanSourceFlag}, #{englishExample}, #{koreanExample}, #{learningStage},
+            #{selectionBasis}, #{sourceName}, #{sourceUrl}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.trivocab.ielts.domain.AdminWordRow">
+        UPDATE words
+        SET word_id = #{wordId},
+            book_id = #{bookId},
+            priority_rank = #{priorityRank},
+            word = #{word},
+            phonetic = #{phonetic},
+            part_of_speech = #{partOfSpeech},
+            chinese_meaning = #{chineseMeaning},
+            korean_meaning = #{koreanMeaning},
+            korean_equivalents = #{koreanEquivalents},
+            korean_definition = #{koreanDefinition},
+            korean_source_flag = #{koreanSourceFlag},
+            english_example = #{englishExample},
+            korean_example = #{koreanExample},
+            learning_stage = #{learningStage},
+            selection_basis = #{selectionBasis},
+            source_name = #{sourceName},
+            source_url = #{sourceUrl}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteReviewLogs">
+        DELETE FROM review_logs WHERE word_id = #{wordId}
+    </delete>
+
+    <delete id="deleteProgress">
+        DELETE FROM user_word_progress WHERE word_id = #{wordId}
+    </delete>
+
+    <delete id="deleteWord">
+        DELETE FROM words WHERE id = #{wordId}
+    </delete>
+
+    <update id="updateBookTotal">
+        UPDATE word_books
+        SET total_words = (SELECT COUNT(*) FROM words WHERE book_id = #{bookId})
+        WHERE id = #{bookId}
+    </update>
+</mapper>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.DashboardMapper">
+
+    <resultMap id="dashboardMap" type="com.trivocab.ielts.domain.DashboardStatsRow">
+        <result property="totalWords" column="total_words"/>
+        <result property="learnedWords" column="learned_words"/>
+        <result property="masteredWords" column="mastered_words"/>
+        <result property="dueWords" column="due_words"/>
+        <result property="todayReviewed" column="today_reviewed"/>
+        <result property="dailyGoal" column="daily_goal"/>
+    </resultMap>
+
+    <select id="findStats" resultMap="dashboardMap">
+        SELECT wb.total_words,
+               COALESCE(ubs.daily_goal, u.daily_goal) AS daily_goal,
+               (
+                   SELECT COUNT(*)
+                   FROM user_word_progress p
+                   JOIN words w ON w.id = p.word_id
+                   WHERE p.user_id = #{userId} AND w.book_id = #{bookId}
+               ) AS learned_words,
+               (
+                   SELECT COUNT(*)
+                   FROM user_word_progress p
+                   JOIN words w ON w.id = p.word_id
+                   WHERE p.user_id = #{userId}
+                     AND w.book_id = #{bookId}
+                     AND p.status = 'MASTERED'
+               ) AS mastered_words,
+               (
+                   SELECT COUNT(*)
+                   FROM user_word_progress p
+                   JOIN words w ON w.id = p.word_id
+                   WHERE p.user_id = #{userId}
+                     AND w.book_id = #{bookId}
+                     AND p.next_review_at &lt;= #{now}
+                     AND p.status &lt;&gt; 'MASTERED'
+               ) AS due_words,
+               (
+                   SELECT COUNT(DISTINCT r.word_id)
+                   FROM review_logs r
+                   JOIN words w ON w.id = r.word_id
+                   WHERE r.user_id = #{userId}
+                     AND w.book_id = #{bookId}
+                     AND r.reviewed_at &gt;= #{dayStart}
+                     AND r.reviewed_at &lt; #{dayEnd}
+               ) AS today_reviewed
+        FROM word_books wb
+        JOIN users u ON u.id = #{userId}
+        LEFT JOIN user_book_settings ubs
+            ON ubs.user_id = u.id AND ubs.book_id = wb.id
+        WHERE wb.id = #{bookId}
+    </select>
+
+    <select id="findReviewTimesBefore" resultType="java.time.LocalDateTime">
+        SELECT r.reviewed_at
+        FROM review_logs r
+        WHERE r.user_id = #{userId}
+          AND r.reviewed_at &lt; #{before}
+        ORDER BY r.reviewed_at DESC
+    </select>
+</mapper>

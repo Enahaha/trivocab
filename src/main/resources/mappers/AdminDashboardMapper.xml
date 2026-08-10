@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.AdminDashboardMapper">
+
+    <resultMap id="adminDashboardStatsMap" type="com.trivocab.ielts.domain.AdminDashboardStatsRow">
+        <result property="todayActiveUsers" column="today_active_users"/>
+        <result property="todayLoginCount" column="today_login_count"/>
+        <result property="todayReviewUsers" column="today_review_users"/>
+        <result property="todayReviewCount" column="today_review_count"/>
+        <result property="todayNewUsers" column="today_new_users"/>
+        <result property="todayMessageCount" column="today_message_count"/>
+        <result property="totalUsers" column="total_users"/>
+        <result property="totalWords" column="total_words"/>
+    </resultMap>
+
+    <select id="findStats" resultMap="adminDashboardStatsMap">
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM (
+                    SELECT le.user_id
+                    FROM login_events le
+                    WHERE le.user_id IS NOT NULL
+                      AND le.event_type = 'LOGIN_SUCCESS'
+                      AND le.created_at &gt;= #{dayStart}
+                      AND le.created_at &lt; #{dayEnd}
+                    UNION
+                    SELECT rl.user_id
+                    FROM review_logs rl
+                    WHERE rl.reviewed_at &gt;= #{dayStart}
+                      AND rl.reviewed_at &lt; #{dayEnd}
+                ) active_users
+            ) AS today_active_users,
+            (
+                SELECT COUNT(*)
+                FROM login_events le
+                WHERE le.event_type = 'LOGIN_SUCCESS'
+                  AND le.created_at &gt;= #{dayStart}
+                  AND le.created_at &lt; #{dayEnd}
+            ) AS today_login_count,
+            (
+                SELECT COUNT(DISTINCT rl.user_id)
+                FROM review_logs rl
+                WHERE rl.reviewed_at &gt;= #{dayStart}
+                  AND rl.reviewed_at &lt; #{dayEnd}
+            ) AS today_review_users,
+            (
+                SELECT COUNT(*)
+                FROM review_logs rl
+                WHERE rl.reviewed_at &gt;= #{dayStart}
+                  AND rl.reviewed_at &lt; #{dayEnd}
+            ) AS today_review_count,
+            (
+                SELECT COUNT(*)
+                FROM users u
+                WHERE u.created_at &gt;= #{dayStart}
+                  AND u.created_at &lt; #{dayEnd}
+            ) AS today_new_users,
+            (
+                SELECT COUNT(*)
+                FROM messages m
+                WHERE m.created_at &gt;= #{dayStart}
+                  AND m.created_at &lt; #{dayEnd}
+            ) AS today_message_count,
+            (SELECT COUNT(*) FROM users) AS total_users,
+            (SELECT COUNT(*) FROM words) AS total_words
+    </select>
+</mapper>

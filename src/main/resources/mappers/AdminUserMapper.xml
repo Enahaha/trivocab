@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.AdminUserMapper">
+
+    <resultMap id="adminUserRowMap" type="com.trivocab.ielts.domain.AdminUserRow">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="displayName" column="display_name"/>
+        <result property="email" column="email"/>
+        <result property="role" column="role"/>
+        <result property="enabled" column="enabled"/>
+        <result property="dailyGoal" column="daily_goal"/>
+        <result property="learnedWords" column="learned_words"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="userFilter">
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOWER(u.username) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(u.display_name) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+                OR LOWER(COALESCE(u.email, '')) LIKE CONCAT('%', LOWER(#{keyword}), '%')
+            )
+        </if>
+    </sql>
+
+    <select id="findPage" resultMap="adminUserRowMap">
+        SELECT
+            u.id, u.username, u.display_name, u.email, u.role, u.enabled,
+            u.daily_goal,
+            (SELECT COUNT(*) FROM user_word_progress p WHERE p.user_id = u.id) AS learned_words,
+            u.last_login_at, u.created_at, u.updated_at
+        FROM users u
+        WHERE 1 = 1
+        <include refid="userFilter"/>
+        ORDER BY u.created_at DESC, u.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM users u
+        WHERE 1 = 1
+        <include refid="userFilter"/>
+    </select>
+
+    <select id="findById" resultMap="adminUserRowMap">
+        SELECT
+            u.id, u.username, u.display_name, u.email, u.role, u.enabled,
+            u.daily_goal,
+            (SELECT COUNT(*) FROM user_word_progress p WHERE p.user_id = u.id) AS learned_words,
+            u.last_login_at, u.created_at, u.updated_at
+        FROM users u
+        WHERE u.id = #{userId}
+    </select>
+
+    <delete id="deleteMessages">
+        DELETE FROM messages WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteLoginEvents">
+        DELETE FROM login_events WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deletePasswordResetTokens">
+        DELETE FROM password_reset_tokens WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteReviewLogs">
+        DELETE FROM review_logs WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteProgress">
+        DELETE FROM user_word_progress WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteSessions">
+        DELETE FROM study_sessions WHERE user_id = #{userId}
+    </delete>
+
+    <delete id="deleteUser">
+        DELETE FROM users WHERE id = #{userId}
+    </delete>
+</mapper>

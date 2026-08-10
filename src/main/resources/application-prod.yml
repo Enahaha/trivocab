@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:/data/trivocab;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_ON_EXIT=FALSE}
+    driver-class-name: org.h2.Driver
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+app:
+  auth:
+    expose-reset-code: ${EXPOSE_RESET_CODE:false}
+    bootstrap-admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME:Enahaha}
+      email: ${BOOTSTRAP_ADMIN_EMAIL:enahaha@local.trivocab}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:123456}
+    demo-password: ${DEMO_PASSWORD:123456}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="登录 TriVocab，继续英语、中文、韩语三语雅思词汇学习">
+  <meta name="theme-color" id="themeColorMeta" content="#edf0eb">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="TriVocab">
+  <title>登录 | TriVocab</title>
+  <script>
+    (() => {
+      try {
+        const savedTheme = localStorage.getItem("trivocab-theme");
+        const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = savedTheme === "dark" || savedTheme === "light"
+          ? savedTheme
+          : (systemDark ? "dark" : "light");
+      } catch (error) {
+        document.documentElement.dataset.theme = "light";
+      }
+    })();
+  </script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/auth.css?v=20260810-zoom">
+</head>
+<body class="auth-page is-checking-auth">
+  <header class="auth-header">
+    <a class="auth-brand" href="/login.html" aria-label="TriVocab 登录页">
+      <span class="auth-brand-mark" aria-hidden="true">T</span>
+      <span><strong>TriVocab</strong><small>English / 中文 / 한국어</small></span>
+    </a>
+    <button class="auth-theme-toggle" id="themeToggle" type="button" aria-label="切换深色模式" aria-pressed="false">
+      <span class="auth-theme-track" aria-hidden="true"><i></i></span>
+      <span id="themeToggleLabel">浅色</span>
+    </button>
+  </header>
+
+  <main class="auth-layout">
+    <section class="auth-story" aria-labelledby="authStoryTitle">
+      <span class="auth-story-kicker">IELTS TRILINGUAL</span>
+      <h1 id="authStoryTitle">让每次回忆，<br>都有语境可以找回。</h1>
+      <p>英文例句建立语境，中韩双语释义帮你确认理解。系统按记忆结果安排后续复习。</p>
+      <div class="auth-language-grid" aria-label="三语学习方式">
+        <span><strong>EN</strong><small>Context</small></span>
+        <span><strong>中</strong><small>释义</small></span>
+        <span><strong>한</strong><small>연상</small></span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-label="账号操作">
+      <div class="auth-check-state" id="authCheckState" role="status" aria-live="polite">
+        <span class="auth-skeleton auth-skeleton-short" aria-hidden="true"></span>
+        <span class="auth-skeleton" aria-hidden="true"></span>
+        <span class="auth-skeleton" aria-hidden="true"></span>
+        <p>正在确认登录状态…</p>
+      </div>
+
+      <div class="auth-panel-content" id="authPanelContent" hidden>
+        <div class="auth-tabs" role="tablist" aria-label="登录或注册">
+          <button type="button" role="tab" id="loginTab" aria-controls="loginSection" aria-selected="true" data-auth-view="login">登录</button>
+          <button type="button" role="tab" id="registerTab" aria-controls="registerSection" aria-selected="false" data-auth-view="register">注册</button>
+        </div>
+
+        <section class="auth-form-section" id="loginSection" role="tabpanel" aria-labelledby="loginTab" data-auth-section="login">
+          <div class="auth-form-heading">
+            <h2>继续今天的学习</h2>
+            <p>登录后会回到你的词书和复习进度。</p>
+          </div>
+          <form id="loginForm" novalidate>
+            <div class="auth-field">
+              <label for="loginUsername">用户名或邮箱</label>
+              <input id="loginUsername" name="identifier" type="text" autocomplete="username" required maxlength="120" placeholder="输入用户名或邮箱">
+              <small>可以使用注册用户名或电子邮箱。</small>
+            </div>
+            <div class="auth-field">
+              <div class="auth-label-row"><label for="loginPassword">密码</label><button class="auth-text-button" type="button" data-auth-view="forgot">忘记密码</button></div>
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="6" maxlength="100" placeholder="输入密码">
+            </div>
+            <div class="auth-form-status" id="loginStatus" role="status" aria-live="polite" hidden></div>
+            <button class="auth-submit" type="submit"><span>登录</span><small>进入学习页</small></button>
+          </form>
+        </section>
+
+        <section class="auth-form-section" id="registerSection" role="tabpanel" aria-labelledby="registerTab" data-auth-section="register" hidden>
+          <div class="auth-form-heading">
+            <h2>创建学习账号</h2>
+            <p>你的学习记录、熟练度和复习日期会单独保存。</p>
+          </div>
+          <form id="registerForm" novalidate>
+            <div class="auth-field-grid">
+              <div class="auth-field">
+                <label for="registerDisplayName">显示名称</label>
+                <input id="registerDisplayName" name="displayName" type="text" autocomplete="name" required minlength="1" maxlength="50" placeholder="例如：子浩">
+              </div>
+              <div class="auth-field">
+                <label for="registerUsername">用户名</label>
+                <input id="registerUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="50" pattern="[A-Za-z0-9_]+" placeholder="字母、数字或下划线">
+              </div>
+            </div>
+            <div class="auth-field">
+              <label for="registerEmail">电子邮箱</label>
+              <input id="registerEmail" name="email" type="email" autocomplete="email" required maxlength="120" placeholder="name@example.com">
+              <small>用于找回密码，不会在学习页公开。</small>
+            </div>
+            <div class="auth-field-grid">
+              <div class="auth-field">
+                <label for="registerPassword">密码</label>
+                <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="至少 8 位">
+              </div>
+              <div class="auth-field">
+                <label for="registerPasswordConfirm">确认密码</label>
+                <input id="registerPasswordConfirm" name="passwordConfirm" type="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="再输入一次">
+              </div>
+            </div>
+            <div class="auth-form-status" id="registerStatus" role="status" aria-live="polite" hidden></div>
+            <button class="auth-submit" type="submit"><span>注册</span><small>建立个人进度</small></button>
+          </form>
+        </section>
+
+        <section class="auth-form-section" id="forgotSection" data-auth-section="forgot" hidden>
+          <button class="auth-back-button" type="button" data-auth-view="login">返回登录</button>
+          <div class="auth-form-heading">
+            <h2>获取重置验证码</h2>
+            <p>输入注册邮箱。收到验证码后，可在下一步设置新密码。</p>
+          </div>
+          <form id="forgotForm" novalidate>
+            <div class="auth-field">
+              <label for="forgotEmail">注册邮箱</label>
+              <input id="forgotEmail" name="email" type="email" autocomplete="email" required maxlength="120" placeholder="name@example.com">
+            </div>
+            <div class="auth-form-status" id="forgotStatus" role="status" aria-live="polite" hidden></div>
+            <button class="auth-submit" type="submit"><span>发送验证码</span><small>继续重置密码</small></button>
+          </form>
+        </section>
+
+        <section class="auth-form-section" id="resetSection" data-auth-section="reset" hidden>
+          <button class="auth-back-button" type="button" data-auth-view="login">返回登录</button>
+          <div class="auth-form-heading">
+            <h2>设置新密码</h2>
+            <p>验证码有效期有限，请尽快完成重置。</p>
+          </div>
+          <div class="auth-code-note" id="resetCodeNote" role="status" hidden></div>
+          <form id="resetForm" novalidate>
+            <div class="auth-field">
+              <label for="resetEmail">注册邮箱</label>
+              <input id="resetEmail" name="email" type="email" autocomplete="email" required maxlength="120" placeholder="name@example.com">
+            </div>
+            <div class="auth-field">
+              <label for="resetCode">验证码</label>
+              <input id="resetCode" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required maxlength="12" placeholder="输入验证码">
+            </div>
+            <div class="auth-field-grid">
+              <div class="auth-field">
+                <label for="resetPassword">新密码</label>
+                <input id="resetPassword" name="newPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="至少 8 位">
+              </div>
+              <div class="auth-field">
+                <label for="resetPasswordConfirm">确认新密码</label>
+                <input id="resetPasswordConfirm" name="newPasswordConfirm" type="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="再输入一次">
+              </div>
+            </div>
+            <div class="auth-form-status" id="resetStatus" role="status" aria-live="polite" hidden></div>
+            <button class="auth-submit" type="submit"><span>重置密码</span><small>保存后返回登录</small></button>
+          </form>
+        </section>
+      </div>
+
+      <div class="auth-gate-error" id="authGateError" role="alert" hidden>
+        <strong>暂时无法连接服务</strong>
+        <p id="authGateErrorMessage">请检查服务状态后重试。</p>
+        <button type="button" id="retryAuthButton">重新尝试</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>制作人：周子皓</span>
+    <span class="site-footer-sep" aria-hidden="true">·</span>
+    <span>版本：v0.1.0</span>
+  </footer>
+
+  <div class="auth-toast-region" id="authToastRegion" aria-live="polite" aria-atomic="true"></div>
+  <script src="/auth.js?v=20260810" defer></script>
+</body>
+</html>

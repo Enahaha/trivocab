@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.StatsMapper">
+
+    <resultMap id="reviewStatMap" type="com.trivocab.ielts.domain.ReviewStatRow">
+        <result property="reviewedAt" column="reviewed_at"/>
+        <result property="responseMs" column="response_ms"/>
+        <result property="first" column="is_first"/>
+    </resultMap>
+
+    <select id="findAllReviewStats" resultMap="reviewStatMap">
+        WITH ranked AS (
+            SELECT reviewed_at,
+                   COALESCE(response_ms, 0) AS response_ms,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY user_id, word_id
+                       ORDER BY reviewed_at, id
+                   ) AS rn
+            FROM review_logs
+            WHERE user_id = #{userId}
+        )
+        SELECT reviewed_at,
+               response_ms,
+               CASE WHEN rn = 1 THEN TRUE ELSE FALSE END AS is_first
+        FROM ranked
+        ORDER BY reviewed_at
+    </select>
+
+    <select id="findCheckinDates" resultType="java.time.LocalDate">
+        SELECT checkin_date
+        FROM checkins
+        WHERE user_id = #{userId}
+        ORDER BY checkin_date
+    </select>
+
+    <select id="checkinExists" resultType="boolean">
+        SELECT CASE WHEN COUNT(*) &gt; 0 THEN TRUE ELSE FALSE END
+        FROM checkins
+        WHERE user_id = #{userId} AND checkin_date = #{date}
+    </select>
+
+    <insert id="insertCheckin">
+        INSERT INTO checkins (user_id, checkin_date)
+        VALUES (#{userId}, #{date})
+    </insert>
+
+    <select id="countCheckins" resultType="int">
+        SELECT COUNT(*)
+        FROM checkins
+        WHERE user_id = #{userId}
+    </select>
+</mapper>

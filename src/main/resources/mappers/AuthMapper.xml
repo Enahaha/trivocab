@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.AuthMapper">
+
+    <resultMap id="userAccountMap" type="com.trivocab.ielts.domain.UserAccountRow">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="displayName" column="display_name"/>
+        <result property="email" column="email"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="role" column="role"/>
+        <result property="enabled" column="enabled"/>
+        <result property="dailyGoal" column="daily_goal"/>
+        <result property="selectedBookId" column="selected_book_id"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+    </resultMap>
+
+    <resultMap id="resetTokenMap" type="com.trivocab.ielts.domain.PasswordResetTokenRow">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="codeHash" column="code_hash"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="usedAt" column="used_at"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="userAccountColumns">
+        id, username, display_name, email, password_hash, role, enabled, daily_goal, selected_book_id, last_login_at
+    </sql>
+
+    <select id="findUserById" resultMap="userAccountMap">
+        SELECT <include refid="userAccountColumns"/>
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <select id="findUserByIdentifier" resultMap="userAccountMap">
+        SELECT <include refid="userAccountColumns"/>
+        FROM users
+        WHERE LOWER(username) = LOWER(#{identifier})
+           OR LOWER(email) = LOWER(#{identifier})
+        LIMIT 1
+    </select>
+
+    <select id="findUserByUsername" resultMap="userAccountMap">
+        SELECT <include refid="userAccountColumns"/>
+        FROM users
+        WHERE LOWER(username) = LOWER(#{username})
+        LIMIT 1
+    </select>
+
+    <select id="findUserByEmail" resultMap="userAccountMap">
+        SELECT <include refid="userAccountColumns"/>
+        FROM users
+        WHERE LOWER(email) = LOWER(#{email})
+        LIMIT 1
+    </select>
+
+    <insert id="insertUser" parameterType="com.trivocab.ielts.domain.UserAccountRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (
+            username, display_name, email, password_hash, role, enabled, daily_goal
+        ) VALUES (
+            #{username}, #{displayName}, #{email}, #{passwordHash}, #{role}, #{enabled}, #{dailyGoal}
+        )
+    </insert>
+
+    <update id="updateLastLogin">
+        UPDATE users
+        SET last_login_at = #{lastLoginAt}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE users
+        SET password_hash = #{passwordHash}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <update id="invalidateActiveResetTokens">
+        UPDATE password_reset_tokens
+        SET used_at = #{usedAt}
+        WHERE user_id = #{userId} AND used_at IS NULL
+    </update>
+
+    <insert id="insertResetToken">
+        INSERT INTO password_reset_tokens (user_id, code_hash, expires_at, created_at)
+        VALUES (#{userId}, #{codeHash}, #{expiresAt}, #{createdAt})
+    </insert>
+
+    <select id="findActiveResetTokens" resultMap="resetTokenMap">
+        SELECT id, user_id, code_hash, expires_at, used_at, created_at
+        FROM password_reset_tokens
+        WHERE user_id = #{userId}
+          AND used_at IS NULL
+          AND expires_at &gt; #{now}
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <update id="consumeResetToken">
+        UPDATE password_reset_tokens
+        SET used_at = #{usedAt}
+        WHERE id = #{tokenId}
+          AND used_at IS NULL
+          AND expires_at &gt; #{usedAt}
+    </update>
+
+    <insert id="insertLoginEvent">
+        INSERT INTO login_events (
+            user_id, username, event_type, ip_address, user_agent, created_at
+        ) VALUES (
+            #{userId}, #{username}, #{eventType}, #{ipAddress}, #{userAgent}, #{createdAt}
+        )
+    </insert>
+</mapper>

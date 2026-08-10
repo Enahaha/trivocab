@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.AdminBookMapper">
+
+    <resultMap id="bookMap" type="com.trivocab.ielts.domain.AdminBookRow">
+        <id property="id" column="id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="totalWords" column="total_words"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="bookMap">
+        SELECT wb.id,
+               wb.code,
+               wb.name,
+               wb.description,
+               wb.total_words,
+               wb.created_at
+        FROM word_books wb
+        ORDER BY wb.id
+    </select>
+
+    <select id="findById" resultMap="bookMap">
+        SELECT wb.id,
+               wb.code,
+               wb.name,
+               wb.description,
+               wb.total_words,
+               wb.created_at
+        FROM word_books wb
+        WHERE wb.id = #{bookId}
+    </select>
+
+    <select id="findByCode" resultMap="bookMap">
+        SELECT wb.id,
+               wb.code,
+               wb.name,
+               wb.description,
+               wb.total_words,
+               wb.created_at
+        FROM word_books wb
+        WHERE LOWER(wb.code) = LOWER(#{code})
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.trivocab.ielts.domain.AdminBookRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO word_books (code, name, description, total_words)
+        VALUES (#{code}, #{name}, #{description}, 0)
+    </insert>
+
+    <update id="update" parameterType="com.trivocab.ielts.domain.AdminBookRow">
+        UPDATE word_books
+        SET code = #{code},
+            name = #{name},
+            description = #{description},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM word_books WHERE id = #{bookId}
+    </delete>
+
+    <select id="countWords" resultType="int">
+        SELECT COUNT(*) FROM words WHERE book_id = #{bookId}
+    </select>
+
+    <delete id="deleteReviewLogsByBook">
+        DELETE FROM review_logs
+        WHERE word_id IN (SELECT id FROM words WHERE book_id = #{bookId})
+    </delete>
+
+    <delete id="deleteProgressByBook">
+        DELETE FROM user_word_progress
+        WHERE word_id IN (SELECT id FROM words WHERE book_id = #{bookId})
+    </delete>
+
+    <delete id="deleteSessionsByBook">
+        DELETE FROM study_sessions WHERE book_id = #{bookId}
+    </delete>
+
+    <delete id="deleteUserSettingsByBook">
+        DELETE FROM user_book_settings WHERE book_id = #{bookId}
+    </delete>
+
+    <update id="clearSelectedBookRefs">
+        UPDATE users
+        SET selected_book_id = (
+            SELECT MIN(id) FROM word_books WHERE id &lt;&gt; #{bookId}
+        )
+        WHERE selected_book_id = #{bookId}
+    </update>
+
+    <delete id="deleteWordsByBook">
+        DELETE FROM words WHERE book_id = #{bookId}
+    </delete>
+</mapper>

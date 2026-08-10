@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: ielts-trilingual-vocabulary
+  datasource:
+    url: jdbc:h2:file:./data/trivocab;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: never
+
+mybatis:
+  mapper-locations: classpath:mappers/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+
+server:
+  port: ${SERVER_PORT:8081}
+  error:
+    include-message: never
+  servlet:
+    session:
+      timeout: 7d
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  demo-user-id: 1
+  time-zone: Asia/Seoul
+  database-bootstrap: true
+  auth:
+    allow-demo-user: false
+    expose-reset-code: true
+    reset-code-ttl-minutes: 10
+    bootstrap-admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME:Enahaha}
+      email: ${BOOTSTRAP_ADMIN_EMAIL:enahaha@local.trivocab}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:123456}
+    demo-password: ${DEMO_PASSWORD:123456}

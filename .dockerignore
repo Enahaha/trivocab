@@ -1,0 +1,7 @@
+target
+data
+.git
+.idea
+.DS_Store
+*.iml
+outputs

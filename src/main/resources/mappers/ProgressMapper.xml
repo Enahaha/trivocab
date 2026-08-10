@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trivocab.ielts.mapper.ProgressMapper">
+
+    <select id="findByUserAndWord" resultType="com.trivocab.ielts.domain.UserWordProgressRow">
+        SELECT id,
+               user_id,
+               word_id,
+               status,
+               ease_factor,
+               interval_days,
+               repetitions,
+               next_review_at,
+               last_reviewed_at,
+               correct_count,
+               wrong_count,
+               version
+        FROM user_word_progress
+        WHERE user_id = #{userId} AND word_id = #{wordId}
+    </select>
+
+    <insert id="insertProgress" parameterType="com.trivocab.ielts.domain.UserWordProgressRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_word_progress (
+            user_id,
+            word_id,
+            status,
+            ease_factor,
+            interval_days,
+            repetitions,
+            next_review_at,
+            last_reviewed_at,
+            correct_count,
+            wrong_count,
+            version
+        ) VALUES (
+            #{userId},
+            #{wordId},
+            #{status},
+            #{easeFactor},
+            #{intervalDays},
+            #{repetitions},
+            #{nextReviewAt},
+            #{lastReviewedAt},
+            #{correctCount},
+            #{wrongCount},
+            #{version}
+        )
+    </insert>
+
+    <update id="updateProgress" parameterType="com.trivocab.ielts.domain.UserWordProgressRow">
+        UPDATE user_word_progress
+        SET status = #{status},
+            ease_factor = #{easeFactor},
+            interval_days = #{intervalDays},
+            repetitions = #{repetitions},
+            next_review_at = #{nextReviewAt},
+            last_reviewed_at = #{lastReviewedAt},
+            correct_count = #{correctCount},
+            wrong_count = #{wrongCount},
+            version = version + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND version = #{version}
+    </update>
+
+    <select id="findLoggedWordId" resultType="long">
+        SELECT word_id
+        FROM review_logs
+        WHERE user_id = #{userId} AND client_review_id = #{clientReviewId}
+    </select>
+
+    <insert id="insertReviewLog">
+        INSERT INTO review_logs (
+            client_review_id,
+            user_id,
+            word_id,
+            session_id,
+            rating,
+            response_ms,
+            reviewed_at
+        ) VALUES (
+            #{clientReviewId},
+            #{userId},
+            #{wordId},
+            #{sessionId},
+            #{rating},
+            #{responseMs},
+            #{reviewedAt}
+        )
+    </insert>
+
+    <update id="updateDailyGoal">
+        UPDATE users
+        SET daily_goal = #{dailyGoal}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+</mapper>

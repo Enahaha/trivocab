@@ -7,9 +7,6 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-import java.awt.Desktop;
-import java.net.URI;
-
 /**
  * Opens the study page in the default browser after startup. Only enabled in
  * packaged desktop builds (jpackage passes app.open-browser-on-start=true).
@@ -34,12 +31,6 @@ public class BrowserLauncher implements ApplicationRunner {
         if (!enabled) {
             return;
         }
-        try {
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().browse(URI.create(url));
-            }
-        } catch (Exception exception) {
-            log.warn("Unable to open the browser automatically: {}", exception.getMessage());
-        }
+        BrowserOpener.open(url);
     }
 }

@@ -4,10 +4,9 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import java.awt.Desktop;
+import com.trivocab.ielts.common.BrowserOpener;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
 
 @MapperScan("com.trivocab.ielts.mapper")
 @SpringBootApplication
@@ -34,12 +33,6 @@ public class IeltsVocabularyApplication {
     }
 
     private static void openBrowser(String url) {
-        try {
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().browse(URI.create(url));
-            }
-        } catch (Exception ignored) {
-            // Opening the browser is best-effort.
-        }
+        BrowserOpener.open(url);
     }
 }

@@ -23,7 +23,7 @@ public final class BrowserOpener {
                 return;
             }
             if (os.contains("win")) {
-                new ProcessBuilder("cmd", "/c", "start", "", url).start();
+                openWindowsBrowser(url);
                 return;
             }
         } catch (Exception ignored) {
@@ -35,6 +35,29 @@ public final class BrowserOpener {
             }
         } catch (Exception ignored) {
             // Opening the browser is best-effort.
+        }
+    }
+
+    private static void openWindowsBrowser(String url) {
+        // App-mode windows allow the page to close itself with window.close(),
+        // so quitting the app can also close the browser window.
+        String[] edgeCandidates = {
+                "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+                "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+                "msedge.exe",
+        };
+        for (String edge : edgeCandidates) {
+            try {
+                new ProcessBuilder(edge, "--app=" + url).start();
+                return;
+            } catch (Exception ignored) {
+                // Try the next candidate.
+            }
+        }
+        try {
+            new ProcessBuilder("cmd", "/c", "start", "", url).start();
+        } catch (Exception ignored) {
+            // Fall back to Desktop below.
         }
     }
 }

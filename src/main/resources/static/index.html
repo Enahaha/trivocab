@@ -25,7 +25,7 @@
     })();
   </script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=20260810-clean">
+  <link rel="stylesheet" href="/styles.css?v=20260810-meactions">
 </head>
 <body class="auth-pending">
   <div class="app-boot" id="appBootState" role="status" aria-live="polite">
@@ -286,8 +286,6 @@
             <div><dt>角色</dt><dd id="meRole">…</dd></div>
             <div><dt>当前词书</dt><dd id="meBookName">…</dd></div>
           </dl>
-          <button class="button button-ghost button-block" id="meLogoutButton" type="button">退出登录</button>
-          <button class="button button-danger button-block" id="meQuitButton" type="button" hidden>退出应用</button>
         </div>
 
         <div class="me-stats-grid" aria-label="学习统计概览">
@@ -325,6 +323,17 @@
             <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
           </div>
           <div class="calendar-grid" id="calendarGrid" aria-live="polite"></div>
+        </div>
+
+        <div class="me-actions">
+          <button class="me-action" id="meQuitButton" type="button" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v10h2V3zm4.83 2.17-1.42 1.42A7 7 0 1 1 6.17 5.17 7 7 0 0 1 4 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83Z"/></svg>
+            <span>退出应用</span>
+          </button>
+          <button class="me-action" id="meLogoutButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            <span>退出登录</span>
+          </button>
         </div>
       </section>
 
@@ -465,6 +474,6 @@
     <div class="word-row skeleton-row" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   </template>
 
-  <script src="/app.js?v=20260810-clean" defer></script>
+  <script src="/app.js?v=20260810-meactions" defer></script>
 </body>
 </html>

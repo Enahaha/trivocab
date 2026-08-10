@@ -722,17 +722,6 @@ body.auth-pending .app-shell {
   background: var(--surface-raised);
 }
 
-.button-danger {
-  margin-top: 10px;
-  border-color: color-mix(in srgb, #c0392b 48%, var(--line));
-  color: #c0392b;
-  background: transparent;
-}
-
-.button-danger:hover:not(:disabled) {
-  background: color-mix(in srgb, #c0392b 8%, transparent);
-}
-
 .hero-actions .button-ghost {
   border-color: rgba(255, 255, 255, .18);
   color: var(--hero-ink);
@@ -1839,6 +1828,58 @@ body {
   margin: 12px 0 0;
   color: var(--ink-faint);
   font-size: 10px;
+}
+
+.me-actions {
+  display: grid;
+  margin-top: 18px;
+  gap: 10px;
+}
+
+.me-action {
+  display: flex;
+  min-height: 46px;
+  padding: 12px 14px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-soft);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  transition: background .18s var(--ease-out), border-color .18s var(--ease-out), color .18s var(--ease-out);
+}
+
+.me-action svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.me-action:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--ink);
+  background: var(--surface-raised);
+}
+
+.me-action:active:not(:disabled) {
+  transform: scale(.99);
+}
+
+.me-action#meQuitButton {
+  border-color: color-mix(in srgb, #b55242 38%, var(--line));
+  color: #b55242;
+  background: color-mix(in srgb, #b55242 5%, var(--surface-soft));
+}
+
+.me-action#meQuitButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #b55242 60%, var(--line));
+  color: #9d4133;
+  background: color-mix(in srgb, #b55242 10%, var(--surface-raised));
 }
 
 #openStatsButton {

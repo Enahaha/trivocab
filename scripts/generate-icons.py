@@ -63,6 +63,13 @@ def main() -> None:
     for size, name in ((192, "icon-192.png"), (512, "icon-512.png")):
         render_icon(size).save(ICON_DIR / name, format="PNG")
     render_icon(180).save(STATIC_DIR / "apple-touch-icon.png", format="PNG")
+    packaging_dir = Path(__file__).resolve().parents[1] / "packaging"
+    packaging_dir.mkdir(parents=True, exist_ok=True)
+    render_icon(256).save(
+        packaging_dir / "TrVocab.ico",
+        format="ICO",
+        sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+    )
     print(f"Icons written to {ICON_DIR} and apple-touch-icon.png")
 
 

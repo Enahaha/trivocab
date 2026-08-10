@@ -161,6 +161,22 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 访问地址：`http://<服务器IP>:8080`（学习页）、`http://<服务器IP>:8080/admin.html`（管理后台）。
 
+### Windows 安装包
+
+Windows 版由 GitHub Actions 在 Windows 构建机生成（macOS 无法直接交叉打包 Windows 程序）：
+
+```bash
+# 手动触发一次构建
+gh workflow run build-windows.yml --repo Enahaha/trivocab --ref main
+```
+
+构建完成后在 Actions 页面下载 `trivocab-windows` 工件，包含：
+
+- `TrVocab-1.1.0.exe`：安装器（需要 Java 21+ 或由 CI 内置运行时，推荐便携版）
+- `TrVocab-1.1.0-windows.zip`：便携版，解压后运行 `TrVocab\TrVocab.exe` 即可
+
+Windows 版使用同样的 8090 端口、自动打开浏览器；数据保存在用户目录 `~/TrVocab/trivocab.mv.db`。
+
 ### 方式三：云服务器直接跑 jar
 
 把 `target/ielts-vocabulary-0.1.0-SNAPSHOT.jar` 上传到服务器，用 `systemd` 或

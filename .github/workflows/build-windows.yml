@@ -1,0 +1,60 @@
+name: Build Windows Packages
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*-windows"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build jar
+        run: mvn -B -q package -DskipTests
+
+      - name: Create app image
+        shell: pwsh
+        run: |
+          jpackage --type app-image `
+            --name TrVocab `
+            --app-version 1.1.0 `
+            --icon packaging/TrVocab.ico `
+            --input target `
+            --main-jar ielts-vocabulary-0.1.0-SNAPSHOT.jar `
+            --main-class org.springframework.boot.loader.launch.JarLauncher `
+            --java-options "-Dspring.datasource.url=jdbc:h2:file:~/TrVocab/trivocab;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_ON_EXIT=FALSE" `
+            --java-options "-Dapp.open-browser-on-start=true" `
+            --java-options "-Dapp.public-url=http://localhost:8090" `
+            --java-options "-Dserver.port=8090" `
+            --java-options "-Dapp.auth.expose-reset-code=false" `
+            --java-options "-Dapp.allow-shutdown=true" `
+            --dest dist
+
+      - name: Create installer
+        shell: pwsh
+        run: |
+          jpackage --type exe `
+            --app-image dist/TrVocab `
+            --name TrVocab `
+            --app-version 1.1.0 `
+            --icon packaging/TrVocab.ico `
+            --dest dist
+
+      - name: Create portable zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/TrVocab -DestinationPath dist/TrVocab-1.1.0-windows.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivocab-windows
+          path: |
+            dist/TrVocab-1.1.0.exe
+            dist/TrVocab-1.1.0-windows.zip

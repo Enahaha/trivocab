@@ -22,6 +22,10 @@ public final class BrowserOpener {
                 new ProcessBuilder("xdg-open", url).start();
                 return;
             }
+            if (os.contains("win")) {
+                new ProcessBuilder("cmd", "/c", "start", "", url).start();
+                return;
+            }
         } catch (Exception ignored) {
             // Fall back to Desktop below.
         }

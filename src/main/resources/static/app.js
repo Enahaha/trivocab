@@ -388,6 +388,11 @@
     try {
       await apiRequest("/system/shutdown", { method: "POST" });
       showToast("应用正在退出…");
+      try {
+        window.close();
+      } catch (ignored) {
+        // 部分浏览器会拦截脚本关闭标签页，由应用侧脚本兜底关闭。
+      }
     } catch (error) {
       elements.meQuitButton.disabled = false;
       elements.meQuitButton.textContent = "退出应用";

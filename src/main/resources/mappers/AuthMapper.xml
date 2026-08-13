@@ -14,6 +14,7 @@
         <result property="enabled" column="enabled"/>
         <result property="dailyGoal" column="daily_goal"/>
         <result property="selectedBookId" column="selected_book_id"/>
+        <result property="timeZone" column="time_zone"/>
         <result property="lastLoginAt" column="last_login_at"/>
     </resultMap>
 
@@ -27,7 +28,7 @@
     </resultMap>
 
     <sql id="userAccountColumns">
-        id, username, display_name, email, password_hash, role, enabled, daily_goal, selected_book_id, last_login_at
+        id, username, display_name, email, password_hash, role, enabled, daily_goal, selected_book_id, time_zone, last_login_at
     </sql>
 
     <select id="findUserById" resultMap="userAccountMap">
@@ -61,15 +62,21 @@
     <insert id="insertUser" parameterType="com.trivocab.ielts.domain.UserAccountRow"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (
-            username, display_name, email, password_hash, role, enabled, daily_goal
+            username, display_name, email, password_hash, role, enabled, daily_goal, time_zone
         ) VALUES (
-            #{username}, #{displayName}, #{email}, #{passwordHash}, #{role}, #{enabled}, #{dailyGoal}
+            #{username}, #{displayName}, #{email}, #{passwordHash}, #{role}, #{enabled}, #{dailyGoal}, #{timeZone}
         )
     </insert>
 
     <update id="updateLastLogin">
         UPDATE users
         SET last_login_at = #{lastLoginAt}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <update id="updateTimeZone">
+        UPDATE users
+        SET time_zone = #{timeZone}, updated_at = CURRENT_TIMESTAMP
         WHERE id = #{userId}
     </update>
 

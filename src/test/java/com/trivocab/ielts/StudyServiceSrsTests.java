@@ -81,9 +81,11 @@ class StudyServiceSrsTests {
 
     @Test
     @Transactional
-    void goodEndsTheInSessionLoopAndFollowsTheForgettingCurve() {
+    void goodEndsTheInSessionLoopAndFollowsTheSm2CurveDrivenByEase() {
         long wordId = firstNewWord().id();
-        int[] expectedIntervals = {1, 2, 4, 7, 15, 30, 60};
+        // ease stays 2.5 across GOOD reviews: 1, round(1*2.5)=3, round(3*2.5)=8,
+        // round(8*2.5)=20, round(20*2.5)=50, round(50*2.5)=125, round(125*2.5)=313
+        int[] expectedIntervals = {1, 3, 8, 20, 50, 125, 313};
 
         for (int index = 0; index < expectedIntervals.length; index++) {
             StudyReviewResponse response = review(
@@ -119,7 +121,7 @@ class StudyServiceSrsTests {
 
     @Test
     @Transactional
-    void easyMastersImmediatelyAndMasteredWordsNeverEnterTheDueQueue() {
+    void easyMastersImmediatelyButComesBackAfterTheMasteryInterval() {
         long wordId = firstNewWord().id();
 
         StudyReviewResponse response = review(wordId, ReviewRating.EASY, "srs-easy");
@@ -127,19 +129,59 @@ class StudyServiceSrsTests {
         assertThat(response.progressStatus()).isEqualTo(ProgressStatus.MASTERED.name());
         assertThat(response.repeatInSession()).isFalse();
         assertThat(response.repeatAfterCards()).isZero();
-        assertThat(response.intervalDays()).isZero();
-        assertThat(response.nextReviewAt()).isNull();
+        assertThat(response.intervalDays()).isEqualTo(30);
+        assertThat(response.nextReviewAt().toInstant()).isEqualTo(NOW.plus(Duration.ofDays(30)));
 
-        // Even corrupt/legacy timestamps must not make a mastered row due.
+        // Not due yet: mastered words do not re-enter the queue before the interval.
+        List<WordCardResponse> queue = studyService.queue(1L, 1L, 100);
+        assertThat(queue).extracting(WordCardResponse::id).doesNotContain(wordId);
+        assertThat(dashboardService.dashboard(1L, 1L).dueWords()).isZero();
+
+        // Once the mastery interval passes, the word comes back for review.
         UserWordProgressRow mastered = progressMapper.findByUserAndWord(1L, wordId);
         mastered.setNextReviewAt(LocalDateTime.ofInstant(NOW.minus(Duration.ofDays(1)), ZoneOffset.UTC));
         assertThat(progressMapper.updateProgress(mastered)).isEqualTo(1);
 
-        List<WordCardResponse> nextQueue = studyService.queue(1L, 1L, 100);
-        DashboardResponse dashboard = dashboardService.dashboard(1L, 1L);
-        assertThat(nextQueue).extracting(WordCardResponse::id).doesNotContain(wordId);
-        assertThat(dashboard.masteredWords()).isEqualTo(1);
-        assertThat(dashboard.dueWords()).isZero();
+        assertThat(studyService.queue(1L, 1L, 100))
+                .extracting(WordCardResponse::id).contains(wordId);
+        assertThat(dashboardService.dashboard(1L, 1L).dueWords()).isEqualTo(1);
+    }
+
+    @Test
+    @Transactional
+    void masteredWordsExtendTheIntervalWhenRememberedAndDowngradeWhenForgotten() {
+        long wordId = firstNewWord().id();
+        review(wordId, ReviewRating.EASY, "srs-mastered-easy");
+        markDue(wordId);
+
+        // Remembered: stays mastered, interval grows to 30 * 2.65 = 80 days.
+        StudyReviewResponse good = review(wordId, ReviewRating.GOOD, "srs-mastered-good");
+        assertThat(good.progressStatus()).isEqualTo(ProgressStatus.MASTERED.name());
+        assertThat(good.intervalDays()).isEqualTo(80);
+        assertThat(good.nextReviewAt().toInstant()).isEqualTo(NOW.plus(Duration.ofDays(80)));
+
+        // Forgotten: AGAIN downgrades back to NEW with a 10-minute revisit.
+        markDue(wordId);
+        StudyReviewResponse again = review(wordId, ReviewRating.AGAIN, "srs-mastered-again");
+        assertThat(again.progressStatus()).isEqualTo(ProgressStatus.NEW.name());
+        assertThat(again.intervalDays()).isZero();
+        assertThat(again.nextReviewAt().toInstant()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
+    }
+
+    @Test
+    @Transactional
+    void hardNeverInflatesTheCurveAndTheNextGoodRestartsAtOneDay() {
+        long wordId = firstNewWord().id();
+        review(wordId, ReviewRating.GOOD, "srs-hard-good-1");
+        review(wordId, ReviewRating.GOOD, "srs-hard-good-2");
+        assertThat(progressMapper.findByUserAndWord(1L, wordId).getIntervalDays()).isEqualTo(3);
+
+        review(wordId, ReviewRating.HARD, "srs-hard-hard");
+        StudyReviewResponse learnedAgain = review(wordId, ReviewRating.GOOD, "srs-hard-good-3");
+
+        // A fuzzy answer must not turn into a longer schedule on the next GOOD.
+        assertThat(learnedAgain.intervalDays()).isEqualTo(1);
+        assertThat(learnedAgain.nextReviewAt().toInstant()).isEqualTo(NOW.plus(Duration.ofDays(1)));
     }
 
     @Test
@@ -169,6 +211,12 @@ class StudyServiceSrsTests {
                 1L,
                 new StudyReviewRequest(clientReviewId, null, wordId, rating, 800L)
         );
+    }
+
+    private void markDue(long wordId) {
+        UserWordProgressRow progress = progressMapper.findByUserAndWord(1L, wordId);
+        progress.setNextReviewAt(LocalDateTime.ofInstant(NOW.minus(Duration.ofDays(1)), ZoneOffset.UTC));
+        assertThat(progressMapper.updateProgress(progress)).isEqualTo(1);
     }
 
     @TestConfiguration(proxyBeanMethods = false)

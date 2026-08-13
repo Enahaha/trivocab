@@ -28,6 +28,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.List;
@@ -42,6 +43,7 @@ public class AuthService {
     private final AuthMapper authMapper;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
+    private final ZoneId applicationZoneId;
     private final boolean exposeResetCode;
     private final boolean allowShutdown;
     private final long resetCodeTtlMinutes;
@@ -52,6 +54,7 @@ public class AuthService {
             AuthMapper authMapper,
             PasswordEncoder passwordEncoder,
             Clock clock,
+            ZoneId applicationZoneId,
             @Value("${app.auth.expose-reset-code:false}") boolean exposeResetCode,
             @Value("${app.allow-shutdown:false}") boolean allowShutdown,
             @Value("${app.auth.reset-code-ttl-minutes:10}") long resetCodeTtlMinutes
@@ -59,6 +62,7 @@ public class AuthService {
         this.authMapper = authMapper;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
+        this.applicationZoneId = applicationZoneId;
         this.exposeResetCode = exposeResetCode;
         this.allowShutdown = allowShutdown;
         this.resetCodeTtlMinutes = Math.max(1, Math.min(60, resetCodeTtlMinutes));
@@ -89,6 +93,8 @@ public class AuthService {
         user.setRole(UserRole.USER.name());
         user.setEnabled(true);
         user.setDailyGoal(20);
+        String timeZone = normalizeTimeZone(request.timeZone());
+        user.setTimeZone(timeZone == null ? applicationZoneId.getId() : timeZone);
         if (authMapper.insertUser(user) != 1) {
             throw new ConflictException("注册失败，请重试");
         }
@@ -122,6 +128,11 @@ public class AuthService {
         LocalDateTime now = now();
         authMapper.updateLastLogin(user.getId(), now);
         user.setLastLoginAt(now);
+        String timeZone = normalizeTimeZone(request.timeZone());
+        if (timeZone != null) {
+            authMapper.updateTimeZone(user.getId(), timeZone);
+            user.setTimeZone(timeZone);
+        }
         recordLoginEvent(user.getId(), user.getUsername(), "LOGIN_SUCCESS", httpRequest);
         String csrfToken = establishSession(httpRequest, user);
         return response(user, csrfToken);
@@ -243,6 +254,7 @@ public class AuthService {
                 user.getEmail(),
                 user.getRole(),
                 user.getSelectedBookId(),
+                user.getTimeZone(),
                 allowShutdown,
                 csrfToken
         );
@@ -260,6 +272,19 @@ public class AuthService {
             );
         } catch (RuntimeException exception) {
             log.warn("Unable to record login event {} for user {}", eventType, username, exception);
+        }
+    }
+
+    private String normalizeTimeZone(String timeZone) {
+        if (timeZone == null || timeZone.isBlank()) {
+            return null;
+        }
+        String candidate = timeZone.trim();
+        try {
+            ZoneId.of(candidate);
+            return candidate;
+        } catch (RuntimeException exception) {
+            return null;
         }
     }
 

@@ -12,6 +12,7 @@ public class UserAccountRow {
     private Boolean enabled;
     private Integer dailyGoal;
     private Long selectedBookId;
+    private String timeZone;
     private LocalDateTime lastLoginAt;
 
     public Long getId() { return id; }
@@ -32,6 +33,8 @@ public class UserAccountRow {
     public void setDailyGoal(Integer dailyGoal) { this.dailyGoal = dailyGoal; }
     public Long getSelectedBookId() { return selectedBookId; }
     public void setSelectedBookId(Long selectedBookId) { this.selectedBookId = selectedBookId; }
+    public String getTimeZone() { return timeZone; }
+    public void setTimeZone(String timeZone) { this.timeZone = timeZone; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
 }

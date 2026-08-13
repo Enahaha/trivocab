@@ -1,5 +1,6 @@
 package com.trivocab.ielts.service;
 
+import com.trivocab.ielts.common.UserTimezoneProvider;
 import com.trivocab.ielts.domain.UserBookSettingsRow;
 import com.trivocab.ielts.domain.WordBookRow;
 import com.trivocab.ielts.dto.BookSelectionItem;
@@ -20,25 +21,25 @@ public class BookSelectionService {
     private final WordBookMapper wordBookMapper;
     private final UserBookMapper userBookMapper;
     private final Clock clock;
-    private final ZoneId applicationZoneId;
+    private final UserTimezoneProvider userTimezoneProvider;
 
     public BookSelectionService(
             WordBookMapper wordBookMapper,
             UserBookMapper userBookMapper,
             Clock clock,
-            ZoneId applicationZoneId
+            UserTimezoneProvider userTimezoneProvider
     ) {
         this.wordBookMapper = wordBookMapper;
         this.userBookMapper = userBookMapper;
         this.clock = clock;
-        this.applicationZoneId = applicationZoneId;
+        this.userTimezoneProvider = userTimezoneProvider;
     }
 
     public BookSelectionResponse selection(long userId) {
         List<WordBookRow> books = wordBookMapper.findAll(userId);
         Long selectedBookId = userBookMapper.findSelectedBookId(userId);
         int defaultDailyGoal = userBookMapper.findDefaultDailyGoal(userId);
-        LocalDate today = LocalDate.now(applicationZoneId);
+        LocalDate today = LocalDate.now(userTimezoneProvider.zoneOf(userId));
         Long resolvedSelected = selectedBookId;
         if (resolvedSelected == null) {
             resolvedSelected = books.isEmpty() ? null : books.get(0).getId();

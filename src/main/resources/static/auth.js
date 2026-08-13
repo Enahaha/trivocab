@@ -112,7 +112,11 @@
     try {
       const user = await request("/auth/login", {
         method: "POST",
-        body: { identifier: values.identifier.trim(), password: values.password },
+        body: {
+          identifier: values.identifier.trim(),
+          password: values.password,
+          timeZone: detectTimeZone()
+        },
         publicRequest: true
       });
       rememberCsrf(user?.csrfToken);
@@ -144,7 +148,8 @@
           username: values.username.trim(),
           displayName: values.displayName.trim(),
           email: values.email.trim(),
-          password: values.password
+          password: values.password,
+          timeZone: detectTimeZone()
         },
         publicRequest: true
       });
@@ -270,6 +275,15 @@
     return Object.fromEntries(new FormData(form).entries());
   }
 
+  function detectTimeZone() {
+    try {
+      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return zone && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)+$/.test(zone) ? zone : "Asia/Seoul";
+    } catch (error) {
+      return "Asia/Seoul";
+    }
+  }
+
   async function request(path, options = {}) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 12000);
@@ -359,7 +373,7 @@
     elements.themeToggle.setAttribute("aria-pressed", String(dark));
     elements.themeToggle.setAttribute("aria-label", dark ? "切换为浅色模式" : "切换为深色模式");
     elements.themeToggleLabel.textContent = dark ? "深色" : "浅色";
-    elements.themeColorMeta.setAttribute("content", dark ? "#111713" : "#edf0eb");
+    elements.themeColorMeta.setAttribute("content", dark ? "#101512" : "#f4f2eb");
   }
 
   function cleanText(value) {

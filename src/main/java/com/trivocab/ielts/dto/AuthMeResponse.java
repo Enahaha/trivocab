@@ -7,6 +7,7 @@ public record AuthMeResponse(
         String email,
         String role,
         Long selectedBookId,
+        String timeZone,
         Boolean allowShutdown,
         String csrfToken
 ) {

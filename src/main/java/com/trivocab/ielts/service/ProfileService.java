@@ -1,7 +1,10 @@
 package com.trivocab.ielts.service;
 
-import com.trivocab.ielts.dto.DailyGoalResponse;
+import com.trivocab.ielts.domain.LearningMode;
 import com.trivocab.ielts.domain.UserBookSettingsRow;
+import com.trivocab.ielts.dto.DailyGoalResponse;
+import com.trivocab.ielts.dto.SettingsResponse;
+import com.trivocab.ielts.dto.SettingsUpdateRequest;
 import com.trivocab.ielts.exception.ResourceNotFoundException;
 import com.trivocab.ielts.mapper.UserBookMapper;
 import org.springframework.stereotype.Service;
@@ -52,6 +55,91 @@ public class ProfileService {
     @Transactional
     public DailyGoalResponse updateDailyGoal(long userId, int dailyGoal) {
         return updateDailyGoal(userId, 1L, dailyGoal);
+    }
+
+    /**
+     * Current learning workflow ({@link LearningMode}) for the user.
+     */
+    public String learningMode(long userId) {
+        if (!userBookMapper.userExists(userId)) {
+            throw new ResourceNotFoundException("用户不存在");
+        }
+        String mode = userBookMapper.findLearningMode(userId);
+        return mode == null || mode.isBlank() ? LearningMode.SIMPLE.name() : mode;
+    }
+
+    @Transactional
+    public String updateLearningMode(long userId, String rawMode) {
+        if (!userBookMapper.userExists(userId)) {
+            throw new ResourceNotFoundException("用户不存在");
+        }
+        LearningMode mode;
+        try {
+            mode = LearningMode.valueOf(rawMode == null ? "" : rawMode.trim().toUpperCase());
+        } catch (IllegalArgumentException error) {
+            throw new IllegalArgumentException("不支持的学习方式: " + rawMode);
+        }
+        userBookMapper.updateLearningMode(userId, mode.name());
+        return mode.name();
+    }
+
+    public SettingsResponse settings(long userId) {
+        if (!userBookMapper.userExists(userId)) {
+            throw new ResourceNotFoundException("用户不存在");
+        }
+        String learningMode = userBookMapper.findLearningMode(userId);
+        if (learningMode == null || learningMode.isBlank()) {
+            learningMode = LearningMode.SIMPLE.name();
+        }
+        String meaningDisplay = userBookMapper.findMeaningDisplay(userId);
+        String theme = userBookMapper.findTheme(userId);
+        return new SettingsResponse(
+                learningMode,
+                userBookMapper.findSpellingEnabled(userId),
+                meaningDisplay == null || meaningDisplay.isBlank() ? "SIMPLIFIED" : meaningDisplay,
+                theme == null || theme.isBlank() ? "SYSTEM" : theme
+        );
+    }
+
+    @Transactional
+    public SettingsResponse updateSettings(long userId, SettingsUpdateRequest request) {
+        if (!userBookMapper.userExists(userId)) {
+            throw new ResourceNotFoundException("用户不存在");
+        }
+        LearningMode mode;
+        try {
+            mode = LearningMode.valueOf(request.learningMode().trim().toUpperCase());
+        } catch (IllegalArgumentException error) {
+            throw new IllegalArgumentException("不支持的学习方式: " + request.learningMode());
+        }
+        String meaningDisplay = normalizeChoice(
+                request.meaningDisplay(), "SIMPLIFIED", "DETAILED", "释义展示方式"
+        );
+        String theme = normalizeChoice(request.theme(), "SYSTEM", "LIGHT", "DARK", "主题");
+        userBookMapper.updateUserSettings(
+                userId,
+                mode.name(),
+                request.spellingEnabled(),
+                meaningDisplay,
+                theme
+        );
+        return new SettingsResponse(mode.name(), request.spellingEnabled(), meaningDisplay, theme);
+    }
+
+    private String normalizeChoice(String value, String first, String second, String fieldName) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        if (!normalized.equals(first) && !normalized.equals(second)) {
+            throw new IllegalArgumentException("不支持的" + fieldName + ": " + value);
+        }
+        return normalized;
+    }
+
+    private String normalizeChoice(String value, String first, String second, String third, String fieldName) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        if (!normalized.equals(first) && !normalized.equals(second) && !normalized.equals(third)) {
+            throw new IllegalArgumentException("不支持的" + fieldName + ": " + value);
+        }
+        return normalized;
     }
 
     private void validateDailyGoal(int dailyGoal) {

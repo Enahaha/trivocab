@@ -1,5 +1,6 @@
 package com.trivocab.ielts.service;
 
+import com.trivocab.ielts.common.UserTimezoneProvider;
 import com.trivocab.ielts.domain.ReviewStatRow;
 import com.trivocab.ielts.dto.CheckinResponse;
 import com.trivocab.ielts.dto.DailyStudyStat;
@@ -25,20 +26,25 @@ import java.util.Set;
 public class ProfileStatsService {
     private final StatsMapper statsMapper;
     private final Clock clock;
-    private final ZoneId applicationZoneId;
+    private final UserTimezoneProvider userTimezoneProvider;
 
-    public ProfileStatsService(StatsMapper statsMapper, Clock clock, ZoneId applicationZoneId) {
+    public ProfileStatsService(
+            StatsMapper statsMapper,
+            Clock clock,
+            UserTimezoneProvider userTimezoneProvider
+    ) {
         this.statsMapper = statsMapper;
         this.clock = clock;
-        this.applicationZoneId = applicationZoneId;
+        this.userTimezoneProvider = userTimezoneProvider;
     }
 
     public StudyStatsResponse stats(long userId, String requestedRange) {
+        ZoneId userZone = userTimezoneProvider.zoneOf(userId);
         String range = requestedRange == null ? "week" : requestedRange;
         if (!range.equals("week") && !range.equals("month")) {
             throw new IllegalArgumentException("统计范围只支持 week 或 month");
         }
-        LocalDate today = LocalDate.now(applicationZoneId);
+        LocalDate today = LocalDate.now(userZone);
         LocalDate start = range.equals("month") ? today.withDayOfMonth(1) : today.minusDays(6);
 
         List<ReviewStatRow> rows = statsMapper.findAllReviewStats(userId);
@@ -47,7 +53,7 @@ public class ProfileStatsService {
         long[] todayValues = new long[3];
 
         for (ReviewStatRow row : rows) {
-            LocalDate date = seoulDate(row.getReviewedAt());
+            LocalDate date = localDate(row.getReviewedAt(), userZone);
             int learned = row.isFirst() ? 1 : 0;
             int reviewed = row.isFirst() ? 0 : 1;
             totals[0] += learned;
@@ -94,7 +100,7 @@ public class ProfileStatsService {
 
     @Transactional
     public CheckinResponse checkin(long userId) {
-        LocalDate today = LocalDate.now(applicationZoneId);
+        LocalDate today = LocalDate.now(userTimezoneProvider.zoneOf(userId));
         if (!statsMapper.checkinExists(userId, today)) {
             statsMapper.insertCheckin(userId, today);
         }
@@ -109,7 +115,7 @@ public class ProfileStatsService {
     }
 
     private CheckinResponse buildCheckinResponse(long userId, int year, int month) {
-        LocalDate today = LocalDate.now(applicationZoneId);
+        LocalDate today = LocalDate.now(userTimezoneProvider.zoneOf(userId));
         List<LocalDate> all = statsMapper.findCheckinDates(userId);
         List<LocalDate> monthDates = all.stream()
                 .filter(date -> date.getYear() == year && date.getMonthValue() == month)
@@ -135,8 +141,8 @@ public class ProfileStatsService {
         return streak;
     }
 
-    private LocalDate seoulDate(LocalDateTime utcTime) {
-        return utcTime.atOffset(ZoneOffset.UTC).atZoneSameInstant(applicationZoneId).toLocalDate();
+    private LocalDate localDate(LocalDateTime utcTime, ZoneId zone) {
+        return utcTime.atOffset(ZoneOffset.UTC).atZoneSameInstant(zone).toLocalDate();
     }
 
     private long toMinutes(long responseMs) {

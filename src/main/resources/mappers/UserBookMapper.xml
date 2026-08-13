@@ -25,6 +25,46 @@
         WHERE id = #{userId}
     </select>
 
+    <select id="findLearningMode" resultType="string">
+        SELECT learning_mode
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updateLearningMode">
+        UPDATE users
+        SET learning_mode = #{learningMode}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
+    <select id="findSpellingEnabled" resultType="boolean">
+        SELECT spelling_enabled
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <select id="findMeaningDisplay" resultType="string">
+        SELECT meaning_display
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <select id="findTheme" resultType="string">
+        SELECT theme
+        FROM users
+        WHERE id = #{userId}
+    </select>
+
+    <update id="updateUserSettings">
+        UPDATE users
+        SET learning_mode = #{learningMode},
+            spelling_enabled = #{spellingEnabled},
+            meaning_display = #{meaningDisplay},
+            theme = #{theme},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{userId}
+    </update>
+
     <select id="userExists" resultType="boolean">
         SELECT CASE WHEN COUNT(*) &gt; 0 THEN TRUE ELSE FALSE END
         FROM users

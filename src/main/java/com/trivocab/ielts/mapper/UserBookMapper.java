@@ -8,6 +8,24 @@ public interface UserBookMapper {
 
     int findDefaultDailyGoal(@Param("userId") long userId);
 
+    String findLearningMode(@Param("userId") long userId);
+
+    int updateLearningMode(@Param("userId") long userId, @Param("learningMode") String learningMode);
+
+    boolean findSpellingEnabled(@Param("userId") long userId);
+
+    String findMeaningDisplay(@Param("userId") long userId);
+
+    String findTheme(@Param("userId") long userId);
+
+    int updateUserSettings(
+            @Param("userId") long userId,
+            @Param("learningMode") String learningMode,
+            @Param("spellingEnabled") boolean spellingEnabled,
+            @Param("meaningDisplay") String meaningDisplay,
+            @Param("theme") String theme
+    );
+
     boolean userExists(@Param("userId") long userId);
 
     int updateSelectedBook(@Param("userId") long userId, @Param("bookId") long bookId);

@@ -2,6 +2,8 @@ package com.trivocab.ielts.dto;
 
 import com.trivocab.ielts.domain.WordRow;
 
+import java.util.List;
+
 public record WordCardResponse(
         Long id,
         Integer priorityRank,
@@ -16,9 +18,18 @@ public record WordCardResponse(
         String koreanExample,
         String learningStage,
         String selectionBasis,
-        String progressStatus
+        String progressStatus,
+        /**
+         * Multiple-choice meaning options for the immersive first-encounter
+         * card. {@code null} on regular review cards and in SIMPLE mode.
+         */
+        List<MeaningOption> options
 ) {
     public static WordCardResponse from(WordRow row) {
+        return from(row, null);
+    }
+
+    public static WordCardResponse from(WordRow row, List<MeaningOption> options) {
         return new WordCardResponse(
                 row.getId(),
                 row.getPriorityRank(),
@@ -33,7 +44,8 @@ public record WordCardResponse(
                 row.getKoreanExample(),
                 row.getLearningStage(),
                 row.getSelectionBasis(),
-                row.getProgressStatus() == null ? "NEW" : row.getProgressStatus()
+                row.getProgressStatus() == null ? "NEW" : row.getProgressStatus(),
+                options
         );
     }
 }

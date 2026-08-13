@@ -85,7 +85,6 @@
             ON p.word_id = w.id AND p.user_id = #{userId}
         WHERE w.book_id = #{bookId}
           AND p.next_review_at &lt;= #{now}
-          AND p.status &lt;&gt; 'MASTERED'
         ORDER BY p.next_review_at, w.priority_rank, w.id
         LIMIT #{limit}
     </select>
@@ -98,6 +97,20 @@
         WHERE w.book_id = #{bookId}
           AND p.id IS NULL
         ORDER BY w.priority_rank, w.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="findDistractors" resultMap="wordRowMap">
+        SELECT id, word, chinese_meaning, korean_meaning
+        FROM words
+        WHERE book_id = #{bookId}
+          AND id != #{wordId}
+        ORDER BY CASE
+            WHEN LEFT(LOWER(word), 3) = LEFT(LOWER(#{word}), 3) THEN 0
+            WHEN LEFT(LOWER(word), 2) = LEFT(LOWER(#{word}), 2) THEN 1
+            WHEN LENGTH(word) = LENGTH(#{word}) THEN 2
+            ELSE 3
+        END, RAND()
         LIMIT #{limit}
     </select>
 </mapper>

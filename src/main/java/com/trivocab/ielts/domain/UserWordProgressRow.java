@@ -9,6 +9,12 @@ public class UserWordProgressRow {
     private String status;
     private Double easeFactor;
     private Integer intervalDays;
+    /**
+     * Interval in days produced by the last successful (GOOD/EASY) review.
+     * Kept stable across AGAIN/HARD so the SM-2 style curve can continue
+     * from the last learned interval instead of resetting to zero.
+     */
+    private Integer lastIntervalDays;
     private Integer repetitions;
     private LocalDateTime nextReviewAt;
     private LocalDateTime lastReviewedAt;
@@ -28,6 +34,8 @@ public class UserWordProgressRow {
     public void setEaseFactor(Double easeFactor) { this.easeFactor = easeFactor; }
     public Integer getIntervalDays() { return intervalDays; }
     public void setIntervalDays(Integer intervalDays) { this.intervalDays = intervalDays; }
+    public Integer getLastIntervalDays() { return lastIntervalDays; }
+    public void setLastIntervalDays(Integer lastIntervalDays) { this.lastIntervalDays = lastIntervalDays; }
     public Integer getRepetitions() { return repetitions; }
     public void setRepetitions(Integer repetitions) { this.repetitions = repetitions; }
     public LocalDateTime getNextReviewAt() { return nextReviewAt; }

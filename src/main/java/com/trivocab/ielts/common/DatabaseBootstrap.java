@@ -79,6 +79,14 @@ public class DatabaseBootstrap implements InitializingBean {
             addColumnIfMissing(connection, "users", "enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
             addColumnIfMissing(connection, "users", "last_login_at", "TIMESTAMP");
             addColumnIfMissing(connection, "users", "selected_book_id", "BIGINT");
+            addColumnIfMissing(connection, "users", "learning_mode", "VARCHAR(16) NOT NULL DEFAULT 'SIMPLE'");
+            addColumnIfMissing(connection, "users", "time_zone", "VARCHAR(64) NOT NULL DEFAULT 'Asia/Seoul'");
+            addColumnIfMissing(connection, "users", "spelling_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+            addColumnIfMissing(connection, "users", "meaning_display", "VARCHAR(16) NOT NULL DEFAULT 'SIMPLIFIED'");
+            addColumnIfMissing(connection, "users", "theme", "VARCHAR(16) NOT NULL DEFAULT 'SYSTEM'");
+            if (actualTableName(connection, "user_word_progress") != null) {
+                addColumnIfMissing(connection, "user_word_progress", "last_interval_days", "INT NOT NULL DEFAULT 0");
+            }
             addColumnIfMissing(connection, "words", "word_id", "VARCHAR(64)");
             addColumnIfMissing(connection, "words", "korean_source_flag", "VARCHAR(40)");
             if (actualTableName(connection, "word_books") != null) {

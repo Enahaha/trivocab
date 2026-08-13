@@ -8,7 +8,13 @@
   const MAX_DAILY_GOAL = 100;
   const DAILY_GOAL_STEP = 10;
   const RETRY_GAP_SIZE = 3;
+  const LEARN_STAGE_FIRST = "first";
+  const LEARN_STAGE_REVIEW1 = "review1";
+  const LEARN_STAGE_REVIEW2 = "review2";
+  const LEARN_STAGE_SPELL = "spell";
+  const LEARN_STAGE_RECALL = "recall";
   const CSRF_STORAGE_KEY = "trivocab-csrf-token";
+  const SESSION_SNAPSHOT_KEY = "trivocab-study-snapshot";
 
   const state = {
     currentRoute: "dashboard",
@@ -34,6 +40,7 @@
     sessionResults: new Map(),
     wordShownAt: 0,
     submittingReview: false,
+    __quizStage: null,
     session: { attempts: 0, firstPass: 0 },
     refreshAfterStudy: false,
     messages: [],
@@ -46,6 +53,18 @@
     checkinDates: new Set(),
     dailyGoal: DEFAULT_DAILY_GOAL,
     dailyGoalSaving: false,
+    learningMode: "SIMPLE",
+    learningModeSaving: false,
+    settings: {
+      learningMode: "SIMPLE",
+      spellingEnabled: true,
+      meaningDisplay: "SIMPLIFIED",
+      theme: "SYSTEM"
+    },
+    settingsSaving: false,
+    __quizOptions: [],
+    __quizAnswered: false,
+    __quizRevealed: false,
     planTotalWords: 3000,
     planLearnedWords: 0,
     currentBatchIsExtra: false
@@ -72,6 +91,14 @@
     themeToggle: document.querySelector("#themeToggle"),
     themeToggleLabel: document.querySelector("#themeToggleLabel"),
     themeColorMeta: document.querySelector("#themeColorMeta"),
+    settingsButton: document.querySelector("#settingsButton"),
+    settingsModal: document.querySelector("#settingsModal"),
+    closeSettingsModal: document.querySelector("#closeSettingsModal"),
+    settingsState: document.querySelector("#settingsState"),
+    settingsThemeRadios: [...document.querySelectorAll('input[name="settingsTheme"]')],
+    settingsLearningModeRadios: [...document.querySelectorAll('input[name="settingsLearningMode"]')],
+    settingsSpellingRadios: [...document.querySelectorAll('input[name="settingsSpelling"]')],
+    settingsMeaningRadios: [...document.querySelectorAll('input[name="settingsMeaning"]')],
     dueCount: document.querySelector("#dueCount"),
     todayLearnedCount: document.querySelector("#todayLearnedCount"),
     masteredCount: document.querySelector("#masteredCount"),
@@ -91,9 +118,11 @@
     dailyGoalCount: document.querySelector("#dailyGoalCount"),
     dailyGoalControl: document.querySelector("#dailyGoalControl"),
     dailyGoalSelect: document.querySelector("#dailyGoalSelect"),
-    saveDailyGoalButton: document.querySelector("#saveDailyGoalButton"),
     dailyGoalEstimate: document.querySelector("#dailyGoalEstimate"),
     dailyGoalState: document.querySelector("#dailyGoalState"),
+    learningModeControl: document.querySelector("#learningModeControl"),
+    learningModeRadios: [...document.querySelectorAll('input[name="learningMode"]')],
+    learningModeState: document.querySelector("#learningModeState"),
     planMessage: document.querySelector("#planMessage"),
     sidebarTaskText: document.querySelector("#sidebarTaskText"),
     sidebarProgress: document.querySelector("#sidebarProgress"),
@@ -122,6 +151,7 @@
     flashcard: document.querySelector("#flashcard"),
     flashcardFront: document.querySelector(".flashcard-front"),
     flashcardBack: document.querySelector(".flashcard-back"),
+    recallPrompt: document.querySelector(".recall-prompt"),
     revealButton: document.querySelector("#revealButton"),
     ratingArea: document.querySelector("#ratingArea"),
     ratingButtons: [...document.querySelectorAll("[data-rating]")],
@@ -130,6 +160,16 @@
     studyProgressBar: document.querySelector("#studyProgressBar"),
     studyProgressTrack: document.querySelector("#studyProgressTrack"),
     studyRank: document.querySelector("#studyRank"),
+    quizOptions: document.querySelector("#quizOptions"),
+    quizFeedback: document.querySelector("#quizFeedback"),
+    studySpell: document.querySelector("#studySpell"),
+    spellChineseMeaning: document.querySelector("#spellChineseMeaning"),
+    spellKoreanMeaning: document.querySelector("#spellKoreanMeaning"),
+    spellInput: document.querySelector("#spellInput"),
+    spellSubmitButton: document.querySelector("#spellSubmitButton"),
+    spellFeedback: document.querySelector("#spellFeedback"),
+    spellSkipButton: document.querySelector("#spellSkipButton"),
+    spellSkipAllButton: document.querySelector("#spellSkipAllButton"),
     studyWord: document.querySelector("#studyWord"),
     studyPhonetic: document.querySelector("#studyPhonetic"),
     studyPartOfSpeech: document.querySelector("#studyPartOfSpeech"),
@@ -206,6 +246,23 @@
       }));
     });
     elements.themeToggle.addEventListener("click", toggleTheme);
+    elements.settingsButton.addEventListener("click", openSettingsModal);
+    elements.closeSettingsModal.addEventListener("click", closeSettingsModal);
+    elements.settingsModal.addEventListener("click", (event) => {
+      if (event.target === elements.settingsModal) closeSettingsModal();
+    });
+    [...elements.settingsThemeRadios,
+      ...elements.settingsLearningModeRadios,
+      ...elements.settingsSpellingRadios,
+      ...elements.settingsMeaningRadios].forEach((radio) => {
+      radio.addEventListener("change", () => {
+        syncSettingsFromControls();
+        applyThemeSetting(state.settings.theme);
+        if (radio.name === "settingsLearningMode") clearStudySnapshot();
+        setSettingsState("正在自动保存…", "loading");
+        debounceSaveSettings();
+      });
+    });
     elements.refreshButton.addEventListener("click", refreshCurrentView);
     elements.bookSelect.addEventListener("change", (event) => switchBook(event.target.value));
     elements.closeStudyButton.addEventListener("click", closeStudy);
@@ -258,8 +315,25 @@
         loadStatsChart(button.dataset.statsRange);
       });
     });
-    elements.dailyGoalSelect.addEventListener("change", handleDailyGoalPreview);
-    elements.saveDailyGoalButton.addEventListener("click", saveDailyGoal);
+    elements.dailyGoalSelect.addEventListener("change", () => {
+      handleDailyGoalPreview();
+      debounceSaveDailyGoal();
+    });
+    elements.learningModeRadios.forEach((radio) => {
+      radio.addEventListener("change", () => {
+        setLearningModeState("正在自动保存学习方式…", "loading");
+        debounceSaveLearningMode();
+      });
+    });
+    elements.spellSubmitButton.addEventListener("click", checkSpelling);
+    elements.spellSkipButton.addEventListener("click", skipSpelling);
+    elements.spellSkipAllButton.addEventListener("click", skipAllSpelling);
+    elements.spellInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        checkSpelling();
+      }
+    });
 
     window.addEventListener("hashchange", () => {
       const route = window.location.hash.replace("#", "");
@@ -270,7 +344,8 @@
 
     document.addEventListener("keydown", handleKeyboard);
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !elements.statsModal.hidden) closeStatsModal();
+      if (event.key === "Escape" && !elements.settingsModal.hidden) closeSettingsModal();
+      else if (event.key === "Escape" && !elements.statsModal.hidden) closeStatsModal();
     });
   }
 
@@ -332,10 +407,15 @@
       state.selection = null;
     }
 
-    const [dashboardResult, booksResult] = await Promise.allSettled([
+    const [dashboardResult, booksResult, settingsResult] = await Promise.allSettled([
       apiRequest(`/dashboard?bookId=${encodeURIComponent(state.bookId)}`),
-      apiRequest("/books")
+      apiRequest("/books"),
+      apiRequest("/profile/settings")
     ]);
+
+    if (settingsResult.status === "fulfilled") {
+      applySettings(settingsResult.value || {});
+    }
 
     if (booksResult.status === "fulfilled") {
       state.books = asArray(booksResult.value);
@@ -734,7 +814,7 @@
     syncStudyEntryAvailability();
 
     if (todayReviewed >= dailyGoal) {
-      setText(elements.planMessage, "今日计划已完成。如果还有余力，可以再巩固一组。");
+      setText(elements.planMessage, "今日目标已完成，仍可继续学习：多背一组更扎实。");
     } else if (dueWords > 0) {
       setText(elements.planMessage, `还有 ${dueWords} 个待复习词，先把它们稳稳地接回来。`);
     } else {
@@ -748,7 +828,9 @@
   }
 
   function syncStudyEntryAvailability() {
-    const normalBatchAvailable = state.dashboardReady && state.todayReviewed < state.dailyGoal;
+    // 每日目标只是进度参考，不是硬上限：只要数据就绪即可开始学习，
+    // 目标完成后按钮保持可用，继续背的词按“额外一组”计算。
+    const normalBatchAvailable = state.dashboardReady;
     elements.startButtons.forEach((button) => {
       const retriesFailedExtraBatch = state.dashboardReady
         && state.currentBatchIsExtra
@@ -759,8 +841,6 @@
       button.setAttribute("aria-disabled", String(!available));
       if (!state.dashboardReady) {
         button.title = "正在读取今日学习进度";
-      } else if (!available) {
-        button.title = "今日学习目标已完成";
       } else {
         button.removeAttribute("title");
       }
@@ -773,9 +853,7 @@
     state.dailyGoalSaving = true;
     elements.dailyGoalControl.setAttribute("aria-busy", "true");
     elements.dailyGoalSelect.disabled = true;
-    elements.saveDailyGoalButton.disabled = true;
-    elements.saveDailyGoalButton.textContent = "保存中…";
-    setDailyGoalState("正在保存每日目标…", "loading");
+    setDailyGoalState("正在自动保存…", "loading");
 
     try {
       const profileQuery = new URLSearchParams({ bookId: String(state.bookId) });
@@ -801,13 +879,205 @@
       state.dailyGoalSaving = false;
       elements.dailyGoalControl.removeAttribute("aria-busy");
       elements.dailyGoalSelect.disabled = false;
-      elements.saveDailyGoalButton.disabled = false;
-      elements.saveDailyGoalButton.textContent = "保存";
     }
   }
 
+  const debounceSaveDailyGoal = debounce(() => saveDailyGoal(), 450);
+
   function syncDailyGoalSelect(dailyGoal) {
     elements.dailyGoalSelect.value = String(dailyGoal);
+  }
+
+  function syncLearningModeControl(learningMode) {
+    const mode = String(learningMode || "SIMPLE").toUpperCase();
+    elements.learningModeRadios.forEach((radio) => {
+      radio.checked = radio.value === mode;
+    });
+  }
+
+  function selectedLearningMode() {
+    const checked = elements.learningModeRadios.find((radio) => radio.checked);
+    return checked ? checked.value : state.learningMode;
+  }
+
+  async function saveLearningMode() {
+    if (state.learningModeSaving) return;
+    const learningMode = selectedLearningMode();
+    if (learningMode === state.learningMode) {
+      setLearningModeState("学习方式没有变化。", "success");
+      return;
+    }
+    state.learningModeSaving = true;
+    elements.learningModeControl.setAttribute("aria-busy", "true");
+    elements.learningModeRadios.forEach((radio) => { radio.disabled = true; });
+    setLearningModeState("正在自动保存…", "loading");
+
+    try {
+      const response = await apiRequest("/profile/learning-mode", {
+        method: "PUT",
+        body: { learningMode }
+      });
+      const savedMode = String(response?.learningMode || learningMode).toUpperCase();
+      state.learningMode = savedMode;
+      state.settings.learningMode = savedMode;
+      syncSettingsControls();
+      syncLearningModeControl(savedMode);
+      clearStudySnapshot();
+      setLearningModeState(
+        savedMode === "IMMERSIVE"
+          ? "已切换到强化模式（不背单词式学习）。"
+          : "已切换到简易模式。",
+        "success"
+      );
+    } catch (error) {
+      syncLearningModeControl(state.learningMode);
+      setLearningModeState(readError(error, "学习方式保存失败，请稍后重试。"), "error");
+    } finally {
+      state.learningModeSaving = false;
+      elements.learningModeControl.removeAttribute("aria-busy");
+      elements.learningModeRadios.forEach((radio) => { radio.disabled = false; });
+    }
+  }
+
+  const debounceSaveLearningMode = debounce(() => saveLearningMode(), 450);
+
+  function setLearningModeState(message, type = "") {
+    elements.learningModeState.hidden = !message;
+    elements.learningModeState.className = `learning-mode-state${type ? ` is-${type}` : ""}`;
+    elements.learningModeState.textContent = message || "";
+  }
+
+  function applySettings(settings = {}) {
+    const learningMode = String(settings.learningMode || "SIMPLE").toUpperCase();
+    state.settings = {
+      learningMode,
+      spellingEnabled: settings.spellingEnabled !== false,
+      meaningDisplay: String(settings.meaningDisplay || "SIMPLIFIED").toUpperCase(),
+      theme: String(settings.theme || "SYSTEM").toUpperCase()
+    };
+    state.learningMode = learningMode;
+    syncLearningModeControl(learningMode);
+    applyThemeSetting(state.settings.theme);
+    syncSettingsControls();
+  }
+
+  function openSettingsModal() {
+    syncSettingsControls();
+    elements.settingsModal.hidden = false;
+    document.body.classList.add("has-modal");
+    elements.appShell.setAttribute("inert", "");
+  }
+
+  function closeSettingsModal() {
+    elements.settingsModal.hidden = true;
+    document.body.classList.remove("has-modal");
+    elements.appShell.removeAttribute("inert");
+  }
+
+  function syncSettingsControls() {
+    elements.settingsThemeRadios.forEach((radio) => {
+      radio.checked = radio.value === state.settings.theme;
+    });
+    elements.settingsLearningModeRadios.forEach((radio) => {
+      radio.checked = radio.value === state.settings.learningMode;
+    });
+    elements.settingsSpellingRadios.forEach((radio) => {
+      radio.checked = radio.value === String(state.settings.spellingEnabled);
+    });
+    elements.settingsMeaningRadios.forEach((radio) => {
+      radio.checked = radio.value === state.settings.meaningDisplay;
+    });
+  }
+
+  function syncSettingsFromControls() {
+    const theme = elements.settingsThemeRadios.find((radio) => radio.checked)?.value;
+    const learningMode = elements.settingsLearningModeRadios.find((radio) => radio.checked)?.value;
+    const spelling = elements.settingsSpellingRadios.find((radio) => radio.checked)?.value;
+    const meaning = elements.settingsMeaningRadios.find((radio) => radio.checked)?.value;
+    if (theme) state.settings.theme = theme;
+    if (learningMode) {
+      state.settings.learningMode = learningMode;
+      state.learningMode = learningMode;
+      syncLearningModeControl(learningMode);
+    }
+    if (spelling !== undefined) state.settings.spellingEnabled = spelling === "true";
+    if (meaning) state.settings.meaningDisplay = meaning;
+  }
+
+  function applyThemeSetting(theme) {
+    const value = String(theme || "SYSTEM").toUpperCase();
+    let resolved;
+    if (value === "LIGHT") {
+      resolved = "light";
+    } else if (value === "DARK") {
+      resolved = "dark";
+    } else {
+      resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.dataset.theme = resolved;
+    try {
+      if (value === "SYSTEM") {
+        localStorage.removeItem("trivocab-theme");
+      } else {
+        localStorage.setItem("trivocab-theme", resolved);
+      }
+    } catch (error) {
+      // 主题仍在本会话生效。
+    }
+    syncThemeControl();
+  }
+
+  async function saveSettings() {
+    if (state.settingsSaving) return;
+    state.settingsSaving = true;
+    elements.settingsModal.setAttribute("aria-busy", "true");
+    try {
+      const response = await apiRequest("/profile/settings", {
+        method: "PUT",
+        body: {
+          learningMode: state.settings.learningMode,
+          spellingEnabled: state.settings.spellingEnabled,
+          meaningDisplay: state.settings.meaningDisplay,
+          theme: state.settings.theme
+        }
+      });
+      applySettings(response || state.settings);
+      clearStudySnapshot();
+      setSettingsState("设置已保存。", "success");
+    } catch (error) {
+      syncSettingsControls();
+      setSettingsState(readError(error, "设置保存失败，请稍后重试。"), "error");
+    } finally {
+      state.settingsSaving = false;
+      elements.settingsModal.removeAttribute("aria-busy");
+    }
+  }
+
+  const debounceSaveSettings = debounce(() => saveSettings(), 450);
+
+  function setSettingsState(message, type = "") {
+    elements.settingsState.hidden = !message;
+    elements.settingsState.className = `settings-state${type ? ` is-${type}` : ""}`;
+    elements.settingsState.textContent = message || "";
+  }
+
+  function summarizeMeaning(text, maxSenses = 3) {
+    const value = cleanText(text);
+    if (!value) return "";
+    const senses = [];
+    const lines = value.split(/\n+/).filter(Boolean);
+    for (const line of lines) {
+      const noPos = line.replace(/^\s*(?:[a-z]+(?:\/[a-z]+)*\.)\s*/i, "");
+      const groups = noPos.split(/[；;]/).map((part) => part.trim()).filter(Boolean);
+      for (const group of groups) {
+        if (senses.length >= maxSenses) break;
+        const items = group.split(/[,，]/).map((part) => part.trim()).filter(Boolean);
+        const compact = items.slice(0, 2).join("，");
+        if (compact && !senses.includes(compact)) senses.push(compact);
+      }
+      if (senses.length >= maxSenses) break;
+    }
+    return senses.join("；");
   }
 
   function renderDailyGoalEstimate(dailyGoal, estimate = {}) {
@@ -1071,15 +1341,46 @@
       return;
     }
 
-    const remainingGoal = Math.max(0, state.dailyGoal - state.todayReviewed);
-    if (!extraBatch && remainingGoal === 0) {
-      syncStudyEntryAvailability();
-      showToast("今日学习目标已完成。");
-      return;
+    // Resume an unfinished session from this browser so AGAIN/HARD words
+    // queued "a few cards later" do not vanish after a refresh or reload.
+    // Finished or discarded snapshots are cleared so they cannot linger.
+    const snapshot = loadStudySnapshot();
+    if (snapshot
+        && Number(snapshot.userId) === Number(state.user?.id)
+        && Number(snapshot.bookId) === Number(state.bookId)) {
+      const finished = Number(snapshot.queueIndex) >= snapshot.queue.length;
+      if (!finished && !extraBatch) {
+        if (state.currentRoute !== "study") state.previousRoute = state.currentRoute;
+        navigate("study", { updateHash: false });
+        state.currentBatchIsExtra = Boolean(snapshot.currentBatchIsExtra);
+        state.queue = snapshot.queue.map((word) => ({ ...word }));
+        state.queueIndex = Math.max(0, Number(snapshot.queueIndex) || 0);
+        state.initialWords = Array.isArray(snapshot.initialWords) ? snapshot.initialWords : [];
+        state.completedWordKeys = new Set(snapshot.completedWordKeys || []);
+        state.pendingRetryKeys = new Set(snapshot.pendingRetryKeys || []);
+        state.sessionResults = new Map(
+          Array.isArray(snapshot.sessionResults)
+            ? snapshot.sessionResults.map((entry) => [entry.key, entry])
+            : []
+        );
+        state.session = snapshot.session || { attempts: 0, firstPass: 0 };
+        state.refreshAfterStudy = true;
+        elements.studyLoading.hidden = true;
+        elements.studyComplete.hidden = true;
+        elements.studyError.hidden = true;
+        elements.studyStage.hidden = false;
+        showCurrentWord();
+        showToast("已恢复上次的学习会话。");
+        return;
+      }
+      clearStudySnapshot();
     }
 
-    const queueLimit = extraBatch ? state.dailyGoal : remainingGoal;
-    state.currentBatchIsExtra = extraBatch;
+    const remainingGoal = Math.max(0, state.dailyGoal - state.todayReviewed);
+    // 目标已完成（remainingGoal === 0）时不再拦截：按一整组继续学习，并标记为额外一组。
+    const goalReached = remainingGoal === 0;
+    const queueLimit = (extraBatch || goalReached) ? state.dailyGoal : remainingGoal;
+    state.currentBatchIsExtra = extraBatch || goalReached;
     if (state.currentRoute !== "study") state.previousRoute = state.currentRoute;
     navigate("study", { updateHash: false });
     state.queue = [];
@@ -1101,7 +1402,7 @@
       const query = new URLSearchParams({ bookId: String(state.bookId), limit: String(queueLimit) });
       const data = await apiRequest(`/study/queue?${query}`);
       state.initialWords = uniqueSessionWords(asArray(data));
-      state.queue = state.initialWords.map((word) => createQueueItem(word));
+      state.queue = buildStudyQueue(state.initialWords);
       state.initialWords.forEach((word) => {
         const key = sessionWordKey(word);
         state.sessionResults.set(key, {
@@ -1111,6 +1412,7 @@
           review: null
         });
       });
+      saveStudySnapshot();
       elements.studyLoading.hidden = true;
       if (state.queue.length === 0) {
         finishSession({ empty: true });
@@ -1132,22 +1434,41 @@
     }
 
     if (word.__isRetry) state.pendingRetryKeys.delete(sessionWordKey(word));
+    const stage = word.__learnStage;
+    if (stage === LEARN_STAGE_SPELL) {
+      renderSpellCard(word);
+      return;
+    }
+    if (stage === LEARN_STAGE_FIRST || stage === LEARN_STAGE_REVIEW1 || stage === LEARN_STAGE_REVIEW2 || stage === LEARN_STAGE_RECALL) {
+      renderQuizCard(word);
+      return;
+    }
     animateCardSwitch(() => renderWordContent(word));
   }
 
   function renderWordContent(word) {
+    elements.flashcard.hidden = false;
+    elements.ratingArea.hidden = false;
     elements.flashcard.classList.remove("is-revealed");
     elements.flashcardBack.scrollTop = 0;
     elements.ratingArea.classList.remove("is-visible");
     elements.ratingArea.setAttribute("aria-hidden", "true");
     elements.ratingArea.setAttribute("inert", "");
+    elements.studySpell.hidden = true;
+    elements.revealButton.hidden = false;
+    elements.quizOptions.hidden = true;
+    elements.quizFeedback.hidden = true;
+    elements.recallPrompt.innerHTML = "在脑海中回忆它的含义。<br><span>뜻을 떠올려 보세요.</span>";
     toggleCardAccessibility(false);
     setRatingDisabled(false);
+    state.__quizStage = null;
 
     const phonetic = formatPhonetic(word.phonetic);
     const partOfSpeech = word.partOfSpeech || "";
     const koreanMeaning = preferredKoreanMeaning(word);
-    const rankPrefix = word.__isRetry ? "本组再巩固" : "IELTS CORE";
+    const rankPrefix = word.__isRetry
+      ? "本组再巩固"
+      : (word.progressStatus === "MASTERED" ? "已掌握 · 巩固复习" : "IELTS CORE");
     const rank = word.priorityRank ? `${rankPrefix} · #${word.priorityRank}` : rankPrefix;
 
     setText(elements.studyRank, rank);
@@ -1158,8 +1479,15 @@
     elements.studyPartOfSpeech.hidden = !partOfSpeech;
     setText(elements.backWord, word.word || "…");
     setText(elements.backMeta, [phonetic, partOfSpeech].filter(Boolean).join(" · "));
-    setText(elements.chineseMeaning, word.chineseMeaning || "中文释义待补充");
-    setText(elements.koreanMeaning, koreanMeaning || "한국어 뜻 준비 중");
+    const simplified = state.settings.meaningDisplay === "SIMPLIFIED";
+    const zhMeaning = simplified
+      ? (summarizeMeaning(word.chineseMeaning) || word.chineseMeaning)
+      : word.chineseMeaning;
+    const koMeaningDisplay = simplified
+      ? (summarizeMeaning(koreanMeaning) || koreanMeaning)
+      : koreanMeaning;
+    setText(elements.chineseMeaning, zhMeaning || "中文释义待补充");
+    setText(elements.koreanMeaning, koMeaningDisplay || "한국어 뜻 준비 중");
     setText(elements.englishExample, word.englishExample || "Example coming soon.");
     setText(elements.koreanExample, word.koreanExample || "예문 준비 중입니다.");
 
@@ -1184,6 +1512,7 @@
 
   function revealCurrentCard() {
     if (state.currentRoute !== "study" || elements.studyStage.hidden) return;
+    if (state.__quizStage) return;
     if (elements.flashcard.classList.contains("is-revealed")) return;
     elements.flashcard.classList.add("is-revealed");
     toggleCardAccessibility(true);
@@ -1244,6 +1573,7 @@
       }
 
       state.refreshAfterStudy = true;
+      saveStudySnapshot();
       state.queueIndex += 1;
       showCurrentWord();
     } catch (error) {
@@ -1255,6 +1585,7 @@
   }
 
   function finishSession({ empty = false } = {}) {
+    clearStudySnapshot();
     elements.studyLoading.hidden = true;
     elements.studyStage.hidden = true;
     elements.studyError.hidden = true;
@@ -1357,6 +1688,443 @@
     return `word-at:${fallbackIndex}`;
   }
 
+  function saveStudySnapshot() {
+    try {
+      localStorage.setItem(SESSION_SNAPSHOT_KEY, JSON.stringify({
+        userId: state.user?.id,
+        bookId: state.bookId,
+        dailyGoal: state.dailyGoal,
+        currentBatchIsExtra: state.currentBatchIsExtra,
+        queue: state.queue,
+        queueIndex: state.queueIndex,
+        initialWords: state.initialWords,
+        completedWordKeys: [...state.completedWordKeys],
+        pendingRetryKeys: [...state.pendingRetryKeys],
+        sessionResults: [...state.sessionResults.entries()].map(([key, value]) => ({ key, ...value })),
+        session: state.session,
+        savedAt: Date.now()
+      }));
+    } catch (error) {
+      // Snapshot persistence is best-effort; learning must not depend on it.
+    }
+  }
+
+  function loadStudySnapshot() {
+    try {
+      const raw = localStorage.getItem(SESSION_SNAPSHOT_KEY);
+      if (!raw) return null;
+      const snapshot = JSON.parse(raw);
+      if (!snapshot || typeof snapshot !== "object" || !Array.isArray(snapshot.queue)) return null;
+      return snapshot;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function clearStudySnapshot() {
+    try {
+      localStorage.removeItem(SESSION_SNAPSHOT_KEY);
+    } catch (error) {
+      // Nothing to recover from when storage is unavailable.
+    }
+  }
+
+  function buildStudyQueue(initialWords) {
+    const queue = [];
+    const newWords = [];
+    const immersive = state.learningMode === "IMMERSIVE";
+    initialWords.forEach((word) => {
+      if (Array.isArray(word.options) && word.options.length > 0) {
+        newWords.push(word);
+      } else if (immersive) {
+        // 强化模式下复习词也用“认识/不认识”回忆卡，不再出现原版翻面卡片。
+        queue.push({ ...createQueueItem(word), __learnStage: LEARN_STAGE_RECALL });
+      } else {
+        queue.push(createQueueItem(word));
+      }
+    });
+    if (immersive && newWords.length > 0) {
+      // 不背单词式：首学一轮（随机顺序），每词的两轮回忆卡随机插入到后续
+      // 位置，保证 F < R1 < R2 且同词不相邻，整体完全随机交错。
+      const shuffledWords = shuffle([...newWords]);
+      shuffledWords.forEach((word) => queue.push({ ...createQueueItem(word), __learnStage: LEARN_STAGE_FIRST }));
+      shuffledWords.forEach((word) => {
+        insertReviewRandomly(queue, word, LEARN_STAGE_REVIEW1);
+        insertReviewRandomly(queue, word, LEARN_STAGE_REVIEW2);
+      });
+    } else {
+      newWords.forEach((word) => queue.push(createQueueItem(word)));
+    }
+    return queue;
+  }
+
+  function renderQuizCard(word) {
+    elements.flashcard.hidden = false;
+    elements.flashcard.classList.remove("is-revealed");
+    elements.flashcardBack.scrollTop = 0;
+    elements.ratingArea.hidden = true;
+    elements.ratingArea.classList.remove("is-visible");
+    elements.ratingArea.setAttribute("aria-hidden", "true");
+    elements.ratingArea.setAttribute("inert", "");
+    elements.studySpell.hidden = true;
+    elements.revealButton.hidden = true;
+    elements.quizOptions.hidden = false;
+    elements.quizFeedback.hidden = true;
+    toggleCardAccessibility(false);
+    state.__quizStage = word.__learnStage;
+    state.__quizAnswered = false;
+    state.__quizRevealed = false;
+    state.__quizOptions = [];
+
+    const phonetic = formatPhonetic(word.phonetic);
+    const partOfSpeech = word.partOfSpeech || "";
+    const stage = word.__learnStage;
+    const isRecall = stage === LEARN_STAGE_REVIEW1 || stage === LEARN_STAGE_REVIEW2 || stage === LEARN_STAGE_RECALL;
+    const prompt = isRecall
+      ? (stage === LEARN_STAGE_RECALL
+        ? "还记得这个词吗？（到期复习）"
+        : (stage === LEARN_STAGE_REVIEW2 ? "最后确认：还记得这个词吗？" : "还记得这个词吗？"))
+      : "选择正确释义（中文 / 한국어）";
+    const hint = isRecall ? "按 1 = 记得 · 2 = 不记得" : "按 1-4 选择选项";
+
+    setText(elements.studyRank, stage === LEARN_STAGE_FIRST ? "新词首学" : (stage === LEARN_STAGE_RECALL ? "到期复习" : (stage === LEARN_STAGE_REVIEW2 ? "组内回忆 · 最后确认" : "组内回忆")));
+    setText(elements.studyWord, word.word || "…");
+    setText(elements.studyPhonetic, phonetic);
+    setText(elements.studyPartOfSpeech, partOfSpeech);
+    elements.studyPhonetic.hidden = !phonetic;
+    elements.studyPartOfSpeech.hidden = !partOfSpeech;
+    elements.recallPrompt.innerHTML = `${escapeHtml(prompt)}<br><span>${escapeHtml(hint)}</span>`;
+    setText(elements.backWord, word.word || "…");
+    setText(elements.backMeta, [phonetic, partOfSpeech].filter(Boolean).join(" · "));
+    const simplified = state.settings.meaningDisplay === "SIMPLIFIED";
+    const quizKorean = preferredKoreanMeaning(word);
+    setText(elements.chineseMeaning, simplified
+      ? (summarizeMeaning(word.chineseMeaning) || word.chineseMeaning || "中文释义待补充")
+      : (word.chineseMeaning || "中文释义待补充"));
+    setText(elements.koreanMeaning, simplified
+      ? (summarizeMeaning(quizKorean) || quizKorean || "한국어 뜻 준비 중")
+      : (quizKorean || "한국어 뜻 준비 중"));
+    setText(elements.englishExample, word.englishExample || "Example coming soon.");
+    setText(elements.koreanExample, word.koreanExample || "예문 준비 중입니다.");
+    setText(elements.quizFeedback, "");
+    elements.quizFeedback.hidden = true;
+
+    if (isRecall) {
+      renderRecallOptions();
+    } else {
+      renderMeaningOptions(word);
+    }
+    updateStudyProgress();
+    state.wordShownAt = performance.now();
+  }
+
+  function renderMeaningOptions(word) {
+    const options = [
+      {
+        id: word.id ?? word.wordId,
+        word: word.word,
+        chineseMeaning: summarizeMeaning(word.chineseMeaning) || "…",
+        koreanMeaning: summarizeMeaning(preferredKoreanMeaning(word)) || "…",
+        __correct: true
+      },
+      ...(Array.isArray(word.options)
+        ? word.options.map((option) => ({
+          ...option,
+          chineseMeaning: summarizeMeaning(option.chineseMeaning) || "…",
+          koreanMeaning: summarizeMeaning(preferredKoreanMeaning(option)) || "…",
+          __correct: false
+        }))
+        : [])
+    ];
+    shuffle(options);
+    state.__quizOptions = options;
+    elements.quizOptions.innerHTML = options.map((option, index) => `
+      <button class="quiz-option" type="button" data-option-index="${index}">
+        <span class="quiz-option-mark">${index + 1}</span>
+        <span class="quiz-option-copy">
+          <span class="quiz-option-zh">${escapeHtml(cleanText(option.chineseMeaning)) || "…"}</span>
+          <span class="quiz-option-ko" lang="ko">${escapeHtml(cleanText(option.koreanMeaning)) || "…"}</span>
+        </span>
+      </button>`).join("");
+    elements.quizOptions.querySelectorAll(".quiz-option").forEach((button) => {
+      button.addEventListener("click", () => answerQuizOption(Number(button.dataset.optionIndex)));
+    });
+  }
+
+  function renderRecallOptions() {
+    state.__quizOptions = [];
+    elements.quizOptions.innerHTML = `
+      <button class="quiz-option recall-option" type="button" data-recall="know">
+        <span class="quiz-option-copy"><span class="quiz-option-zh">记得</span><span class="quiz-option-ko" lang="ko">기억나요</span></span>
+      </button>
+      <button class="quiz-option recall-option" type="button" data-recall="unknown">
+        <span class="quiz-option-copy"><span class="quiz-option-zh">不记得</span><span class="quiz-option-ko" lang="ko">기억 안 나요</span></span>
+      </button>`;
+    elements.quizOptions.querySelectorAll(".quiz-option").forEach((button) => {
+      button.addEventListener("click", () => answerRecall(button.dataset.recall === "know"));
+    });
+  }
+
+  function answerQuizOption(index) {
+    const word = state.queue[state.queueIndex];
+    if (!word || state.__quizAnswered) return;
+    const options = state.__quizOptions || [];
+    const chosen = options[index];
+    if (!chosen) return;
+    state.__quizAnswered = true;
+    state.__quizRevealed = false;
+    const buttons = elements.quizOptions.querySelectorAll(".quiz-option");
+    buttons.forEach((button, buttonIndex) => {
+      button.disabled = true;
+      if (options[buttonIndex]?.__correct) button.classList.add("is-correct");
+      if (buttonIndex === index && !chosen.__correct) button.classList.add("is-wrong");
+    });
+    const correct = Boolean(chosen.__correct);
+    if (correct) {
+      revealQuizAnswer(word, "答对了，按空格继续。");
+      scheduleRecallAfterFirstPass(word);
+    } else {
+      elements.recallPrompt.innerHTML = `${escapeHtml("选错了，红色是你的选择，绿色是正确释义。")}<br><span>${escapeHtml("按 空格 查看释义 · 스페이스로 확인")}</span>`;
+      requeueForRelearn(word);
+    }
+    saveStudySnapshot();
+  }
+
+  function revealQuizAnswer(word, message) {
+    if (!word || state.__quizRevealed) return;
+    state.__quizRevealed = true;
+    setText(elements.chineseMeaning, word.chineseMeaning || "…");
+    setText(elements.koreanMeaning, preferredKoreanMeaning(word) || "…");
+    setText(elements.quizFeedback, message || "");
+    elements.quizFeedback.hidden = false;
+    window.requestAnimationFrame(() => {
+      elements.flashcard.classList.add("is-revealed");
+      toggleCardAccessibility(true);
+    });
+  }
+
+  function answerRecall(knows) {
+    const word = state.queue[state.queueIndex];
+    if (!word || state.__quizAnswered) return;
+    state.__quizAnswered = true;
+    state.__quizRevealed = true;
+    elements.quizOptions.querySelectorAll(".quiz-option").forEach((button) => { button.disabled = true; });
+    setText(elements.chineseMeaning, word.chineseMeaning || "…");
+    setText(elements.koreanMeaning, preferredKoreanMeaning(word) || "…");
+    const stage = word.__learnStage;
+    setText(elements.quizFeedback, stage === LEARN_STAGE_RECALL
+      ? (knows ? "记得，已安排下一次复习。" : "没关系，这个词稍后会再出现。")
+      : (knows ? "记得，继续保持。" : "没关系，这个词会重新加入本组学习。"));
+    elements.quizFeedback.hidden = false;
+    window.requestAnimationFrame(() => {
+      elements.flashcard.classList.add("is-revealed");
+      toggleCardAccessibility(true);
+    });
+    if (stage === LEARN_STAGE_RECALL) {
+      commitReviewCard(word, knows);
+    } else if (knows && stage === LEARN_STAGE_REVIEW2) {
+      commitNewWordAsLearned(word);
+    } else if (!knows) {
+      requeueForRelearn(word);
+    }
+    saveStudySnapshot();
+  }
+
+  function requeueForRelearn(word) {
+    const key = sessionWordKey(word);
+    for (let index = state.queue.length - 1; index > state.queueIndex; index -= 1) {
+      if (sessionWordKey(state.queue[index]) === key) state.queue.splice(index, 1);
+    }
+    const firstRemainingIndex = state.queueIndex + 1;
+    const remainingCount = Math.max(0, state.queue.length - firstRemainingIndex);
+    const gap = Math.min(RETRY_GAP_SIZE, remainingCount);
+    const insertionIndex = firstRemainingIndex + gap;
+    state.queue.splice(insertionIndex, 0, { ...createQueueItem(word, true), __learnStage: LEARN_STAGE_FIRST });
+    state.pendingRetryKeys.add(key);
+  }
+
+  function scheduleRecallAfterFirstPass(word) {
+    const key = sessionWordKey(word);
+    const hasRecallAhead = state.queue.some((item, index) =>
+      index > state.queueIndex
+        && sessionWordKey(item) === key
+        && (item.__learnStage === LEARN_STAGE_REVIEW1 || item.__learnStage === LEARN_STAGE_REVIEW2)
+    );
+    if (hasRecallAhead) return;
+    insertReviewRandomly(state.queue, word, LEARN_STAGE_REVIEW1);
+    insertReviewRandomly(state.queue, word, LEARN_STAGE_REVIEW2);
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function insertReviewRandomly(queue, word, stage) {
+    const key = sessionWordKey(word);
+    let lastIndex = -1;
+    queue.forEach((item, index) => {
+      if (sessionWordKey(item) === key) lastIndex = index;
+    });
+    const minIndex = lastIndex + 1;
+    const candidates = [];
+    for (let index = minIndex; index <= queue.length; index += 1) {
+      const prev = index > 0 ? queue[index - 1] : null;
+      const next = index < queue.length ? queue[index] : null;
+      if ((prev && sessionWordKey(prev) === key) || (next && sessionWordKey(next) === key)) {
+        continue;
+      }
+      candidates.push(index);
+    }
+    const position = candidates.length > 0
+      ? candidates[randomInt(0, candidates.length - 1)]
+      : queue.length;
+    queue.splice(position, 0, { ...createQueueItem(word), __learnStage: stage });
+  }
+
+  /**
+   * 强化模式下的到期复习：记得=GOOD 推进复习计划，不记得=AGAIN 重置并稍后本组再出现。
+   * 提交成功后由用户点“继续”推进到下一张。
+   */
+  async function commitReviewCard(word, knows) {
+    const rating = knows ? "GOOD" : "AGAIN";
+    const responseMs = Math.max(0, Math.round(performance.now() - state.wordShownAt));
+    const clientReviewId = word.__clientReviewId || createReviewId();
+    word.__clientReviewId = clientReviewId;
+    try {
+      const reviewResponse = await apiRequest("/study/reviews", {
+        method: "POST",
+        body: { clientReviewId, wordId: word.id ?? word.wordId, rating, responseMs }
+      });
+      const key = sessionWordKey(word);
+      const result = state.sessionResults.get(key) || { word, attempts: 0, finalRating: null, review: null };
+      result.attempts += 1;
+      result.lastRating = rating;
+      result.review = reviewResponse || {};
+      state.sessionResults.set(key, result);
+      state.session.attempts += 1;
+      if (knows) {
+        result.finalRating = "GOOD";
+        state.completedWordKeys.add(key);
+        if (result.attempts === 1) state.session.firstPass += 1;
+        removeFutureRetries(key);
+      } else {
+        result.finalRating = null;
+        scheduleRetry(word, reviewResponse?.repeatAfterCards);
+      }
+      state.refreshAfterStudy = true;
+      saveStudySnapshot();
+    } catch (error) {
+      showToast(readError(error, "复习结果未能保存，请重试"), "error");
+    }
+  }
+
+  async function commitNewWordAsLearned(word) {
+    const responseMs = Math.max(0, Math.round(performance.now() - state.wordShownAt));
+    const clientReviewId = word.__clientReviewId || createReviewId();
+    word.__clientReviewId = clientReviewId;
+    try {
+      const reviewResponse = await apiRequest("/study/reviews", {
+        method: "POST",
+        body: { clientReviewId, wordId: word.id ?? word.wordId, rating: "GOOD", responseMs }
+      });
+      const key = sessionWordKey(word);
+      const result = state.sessionResults.get(key) || { word, attempts: 0, finalRating: null, review: null };
+      result.attempts += 1;
+      result.finalRating = "GOOD";
+      result.review = reviewResponse || {};
+      state.sessionResults.set(key, result);
+      state.session.attempts += 1;
+      state.session.firstPass += 1;
+      state.completedWordKeys.add(key);
+      state.refreshAfterStudy = true;
+      if (state.settings.spellingEnabled) {
+        state.queue.push({ ...createQueueItem(word), __learnStage: LEARN_STAGE_SPELL });
+      }
+      saveStudySnapshot();
+    } catch (error) {
+      showToast(readError(error, "学习结果未能保存，请重试"), "error");
+    }
+  }
+
+  function advanceQuiz() {
+    state.queueIndex += 1;
+    showCurrentWord();
+  }
+
+  function renderSpellCard(word) {
+    elements.flashcard.hidden = true;
+    elements.ratingArea.hidden = true;
+    elements.flashcard.classList.remove("is-revealed");
+    elements.ratingArea.classList.remove("is-visible");
+    elements.ratingArea.setAttribute("aria-hidden", "true");
+    elements.ratingArea.setAttribute("inert", "");
+    elements.studySpell.hidden = false;
+    elements.quizOptions.hidden = true;
+    state.__quizStage = null;
+    setText(elements.spellChineseMeaning, word.chineseMeaning || "…");
+    setText(elements.spellKoreanMeaning, preferredKoreanMeaning(word) || "…");
+    setText(elements.spellFeedback, "");
+    elements.spellFeedback.className = "spell-feedback";
+    elements.spellInput.value = "";
+    elements.spellInput.disabled = false;
+    elements.spellSubmitButton.disabled = false;
+    elements.spellSkipButton.hidden = false;
+    updateStudyProgress();
+    state.wordShownAt = performance.now();
+    window.setTimeout(() => { if (!elements.studySpell.hidden) elements.spellInput.focus(); }, 0);
+  }
+
+  function checkSpelling() {
+    const word = state.queue[state.queueIndex];
+    if (!word || word.__learnStage !== LEARN_STAGE_SPELL) return;
+    const input = elements.spellInput.value.trim().toLowerCase();
+    const expected = cleanText(word.word).trim().toLowerCase();
+    if (!input) return;
+    if (input === expected) {
+      setText(elements.spellFeedback, "拼写正确 ✓");
+      elements.spellFeedback.className = "spell-feedback is-correct";
+      elements.spellInput.disabled = true;
+      elements.spellSubmitButton.disabled = true;
+      elements.spellSkipButton.hidden = true;
+      saveStudySnapshot();
+      window.setTimeout(() => { state.queueIndex += 1; showCurrentWord(); }, 450);
+    } else {
+      setText(elements.spellFeedback, "拼写不正确，请对照释义再试一次。");
+      elements.spellFeedback.className = "spell-feedback is-wrong";
+      elements.spellInput.select();
+    }
+  }
+
+  function skipSpelling() {
+    const word = state.queue[state.queueIndex];
+    if (!word || word.__learnStage !== LEARN_STAGE_SPELL) return;
+    state.queueIndex += 1;
+    showCurrentWord();
+  }
+
+  function skipAllSpelling() {
+    const currentIsSpell = state.queue[state.queueIndex]?.__learnStage === LEARN_STAGE_SPELL;
+    state.queue = state.queue.filter((item, index) => {
+      if (index < state.queueIndex) return true;
+      if (index === state.queueIndex) return !currentIsSpell;
+      return item.__learnStage !== LEARN_STAGE_SPELL;
+    });
+    saveStudySnapshot();
+    if (state.queueIndex >= state.queue.length) {
+      finishSession();
+    } else {
+      showCurrentWord();
+    }
+  }
+
+  function shuffle(list) {
+    for (let index = list.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [list[index], list[randomIndex]] = [list[randomIndex], list[index]];
+    }
+    return list;
+  }
+
   function scheduleRetry(word, requestedGap) {
     const key = sessionWordKey(word);
     const alreadyQueued = state.pendingRetryKeys.has(key)
@@ -1368,7 +2136,11 @@
     const responseGap = optionalNumber(requestedGap);
     const retryGap = responseGap === null ? RETRY_GAP_SIZE : clamp(Math.round(responseGap), 0, state.dailyGoal);
     const insertionIndex = firstRemainingIndex + Math.min(retryGap, remainingCount);
-    state.queue.splice(insertionIndex, 0, createQueueItem(word, true));
+    const retryItem = createQueueItem(word, true);
+    if (state.learningMode === "IMMERSIVE") {
+      retryItem.__learnStage = LEARN_STAGE_RECALL;
+    }
+    state.queue.splice(insertionIndex, 0, retryItem);
     state.pendingRetryKeys.add(key);
   }
 
@@ -1410,15 +2182,8 @@
   }
 
   function sessionReviewSchedule(word, result = {}) {
-    if (String(result.finalRating || "").toUpperCase() === "EASY") {
-      return {
-        label: "无需复习",
-        detail: "不再安排复习",
-        date: null,
-        noReview: true
-      };
-    }
-
+    // EASY and GOOD on mastered words schedule a real next review now, so
+    // the generic interval logic below applies to every finished word.
     const review = result.review || {};
     const intervalCandidate = optionalNumber(
       review.intervalDays,
@@ -1591,6 +2356,41 @@
       closeStudy();
       return;
     }
+    if (state.__quizStage) {
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (!state.__quizAnswered) return;
+        if (!state.__quizRevealed) {
+          revealQuizAnswer(state.queue[state.queueIndex], "正确释义如下，按空格继续。");
+        } else {
+          advanceQuiz();
+        }
+        return;
+      }
+      if (state.__quizAnswered) return;
+      const stage = state.__quizStage;
+      const isRecall = stage === LEARN_STAGE_REVIEW1
+        || stage === LEARN_STAGE_REVIEW2
+        || stage === LEARN_STAGE_RECALL;
+      if (isRecall) {
+        if (event.key === "1") {
+          event.preventDefault();
+          answerRecall(true);
+          return;
+        }
+        if (event.key === "2") {
+          event.preventDefault();
+          answerRecall(false);
+          return;
+        }
+      } else if (["1", "2", "3", "4"].includes(event.key)) {
+        event.preventDefault();
+        const optionIndex = Number(event.key) - 1;
+        if (optionIndex < (state.__quizOptions || []).length) answerQuizOption(optionIndex);
+        return;
+      }
+      return;
+    }
     if (event.code === "Space" && target === elements.revealButton) {
       event.preventDefault();
       revealCurrentCard();
@@ -1705,14 +2505,12 @@
   }
 
   function toggleTheme() {
-    const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = nextTheme;
-    try {
-      localStorage.setItem("trivocab-theme", nextTheme);
-    } catch (error) {
-      // The selected theme still applies for this session when storage is unavailable.
-    }
-    syncThemeControl();
+    const current = document.documentElement.dataset.theme === "dark" ? "DARK" : "LIGHT";
+    const next = current === "DARK" ? "LIGHT" : "DARK";
+    state.settings.theme = next;
+    applyThemeSetting(next);
+    syncSettingsControls();
+    debounceSaveSettings();
   }
 
   function syncThemeControl() {
@@ -1721,7 +2519,7 @@
     elements.themeToggle.setAttribute("aria-label", dark ? "切换为浅色模式" : "切换为深色模式");
     setText(elements.themeToggleLabel, dark ? "深色" : "浅色");
     if (elements.themeColorMeta) {
-      elements.themeColorMeta.setAttribute("content", dark ? "#111713" : "#edf0eb");
+      elements.themeColorMeta.setAttribute("content", dark ? "#101512" : "#f4f2eb");
     }
   }
 

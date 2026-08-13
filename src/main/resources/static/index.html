@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="IELTS 英语·中文·韩语三语背词学习应用">
-  <meta name="theme-color" id="themeColorMeta" content="#edf0eb">
+  <meta name="theme-color" id="themeColorMeta" content="#f4f2eb">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,7 +25,7 @@
     })();
   </script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=20260810-meactions">
+  <link rel="stylesheet" href="/styles.css?v=20260813-redesign">
 </head>
 <body class="auth-pending">
   <div class="app-boot" id="appBootState" role="status" aria-live="polite">
@@ -91,6 +91,9 @@
         </div>
         <div class="topbar-actions">
           <span class="topbar-user" id="topbarUserName">学习者</span>
+          <button class="icon-button settings-icon-button" id="settingsButton" type="button" title="设置" aria-label="设置">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58ZM12 15.6A3.6 3.6 0 1 1 15.6 12 3.61 3.61 0 0 1 12 15.6Z"/></svg>
+          </button>
           <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换深色模式" aria-pressed="false">
             <span class="theme-toggle-track" aria-hidden="true"><i></i></span>
             <span class="theme-toggle-label" id="themeToggleLabel">浅色</span>
@@ -193,10 +196,23 @@
                   <option value="90">90 个词</option>
                   <option value="100">100 个词</option>
                 </select>
-                <button class="daily-goal-save" id="saveDailyGoalButton" type="button">保存</button>
               </div>
               <p class="daily-goal-estimate" id="dailyGoalEstimate" aria-live="polite">正在计算词书完成时间…</p>
               <div class="daily-goal-state" id="dailyGoalState" role="status" aria-live="polite" hidden></div>
+            </div>
+            <div class="learning-mode-control" id="learningModeControl">
+              <label>学习方式</label>
+              <div class="learning-mode-options" role="radiogroup" aria-label="学习方式">
+                <label class="learning-mode-option">
+                  <input type="radio" name="learningMode" value="SIMPLE" checked>
+                  <span><strong>简易模式</strong><small>当前方式：到期复习 + 新词，四档记忆反馈</small></span>
+                </label>
+                <label class="learning-mode-option">
+                  <input type="radio" name="learningMode" value="IMMERSIVE">
+                  <span><strong>强化模式</strong><small>不背单词式：选项首学、组内重复、拼写巩固</small></span>
+                </label>
+              </div>
+              <div class="learning-mode-state" id="learningModeState" role="status" aria-live="polite" hidden></div>
             </div>
             <p class="plan-message" id="planMessage">从第一个词开始，今天的进步会很具体。</p>
             <button class="button button-soft button-block" type="button" data-start-study disabled>继续学习</button>
@@ -366,6 +382,7 @@
                   <div><span id="studyPhonetic"></span><em id="studyPartOfSpeech"></em></div>
                 </div>
                 <p class="recall-prompt">在脑海中回忆它的含义。<br><span>뜻을 떠올려 보세요.</span></p>
+                <div class="quiz-options" id="quizOptions" role="group" hidden></div>
                 <button class="reveal-button" id="revealButton" type="button">
                   <span>查看释义</span><small>Space</small>
                 </button>
@@ -380,6 +397,7 @@
                   <section class="meaning-block meaning-zh"><span class="language-tag">中文</span><p id="chineseMeaning">…</p></section>
                   <section class="meaning-block meaning-ko" lang="ko"><span class="language-tag">한국어</span><p id="koreanMeaning">…</p></section>
                 </div>
+                <p class="quiz-feedback" id="quizFeedback" role="status" aria-live="polite" hidden></p>
                 <div class="examples">
                   <section class="example-block"><span>ENGLISH EXAMPLE</span><p id="englishExample" lang="en">Example coming soon.</p></section>
                   <section class="example-block example-ko" lang="ko"><span>한국어 예문</span><p id="koreanExample">한국어 예문이 아직 없습니다.</p></section>
@@ -395,6 +413,27 @@
               <button class="rating-button rating-hard" type="button" data-rating="HARD" aria-label="模糊，稍后在本组重新巩固"><kbd>2</kbd><strong>模糊</strong><small>Hard</small></button>
               <button class="rating-button rating-good" type="button" data-rating="GOOD" aria-label="记得，本组不再出现并安排后续复习"><kbd>3</kbd><strong>记得</strong><small>Good</small></button>
               <button class="rating-button rating-easy" type="button" data-rating="EASY" aria-label="熟练，本组不再出现且无需后续复习"><kbd>4</kbd><strong>熟练</strong><small>Easy</small></button>
+            </div>
+          </div>
+
+          <div class="study-spell" id="studySpell" hidden>
+            <div class="spell-card">
+              <span class="word-rank">拼写练习</span>
+              <h1 id="spellTitle">写出这个单词</h1>
+              <p class="spell-prompt">根据释义拼写英文单词。</p>
+              <div class="spell-meanings">
+                <section class="meaning-block meaning-zh"><span class="language-tag">中文</span><p id="spellChineseMeaning">…</p></section>
+                <section class="meaning-block meaning-ko" lang="ko"><span class="language-tag">한국어</span><p id="spellKoreanMeaning">…</p></section>
+              </div>
+              <div class="spell-input-row">
+                <input id="spellInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="拼写单词">
+                <button class="button button-primary" id="spellSubmitButton" type="button">检查</button>
+              </div>
+              <p class="spell-feedback" id="spellFeedback" role="status" aria-live="polite"></p>
+              <div class="spell-skip-row">
+                <button class="text-button" id="spellSkipButton" type="button">跳过拼写</button>
+                <button class="text-button" id="spellSkipAllButton" type="button">跳过全部拼写</button>
+              </div>
             </div>
           </div>
         </div>
@@ -468,12 +507,52 @@
     </section>
   </div>
 
+  <div class="settings-modal-backdrop" id="settingsModal" hidden>
+    <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+      <div class="settings-modal-heading">
+        <div><h2 id="settingsModalTitle">设置</h2><p>偏好会自动保存，刷新后依然生效。</p></div>
+        <button id="closeSettingsModal" type="button" aria-label="关闭设置">关闭</button>
+      </div>
+      <div class="settings-group">
+        <span class="settings-label">主题</span>
+        <div class="settings-options" role="radiogroup" aria-label="主题">
+          <label><input type="radio" name="settingsTheme" value="LIGHT"><span>浅色</span></label>
+          <label><input type="radio" name="settingsTheme" value="DARK"><span>深色</span></label>
+          <label><input type="radio" name="settingsTheme" value="SYSTEM"><span>跟随系统</span></label>
+        </div>
+      </div>
+      <div class="settings-group">
+        <span class="settings-label">学习方式</span>
+        <div class="settings-options settings-options-stack" role="radiogroup" aria-label="学习方式">
+          <label><input type="radio" name="settingsLearningMode" value="SIMPLE"><span><strong>简易模式</strong><small>翻面卡 + 四档记忆反馈</small></span></label>
+          <label><input type="radio" name="settingsLearningMode" value="IMMERSIVE"><span><strong>强化模式</strong><small>不背单词式：选项首学、组内回忆、拼写巩固</small></span></label>
+        </div>
+      </div>
+      <div class="settings-group">
+        <span class="settings-label">拼写练习</span>
+        <small class="settings-desc">仅强化模式：组末是否进行拼写巩固</small>
+        <div class="settings-options" role="radiogroup" aria-label="拼写练习">
+          <label><input type="radio" name="settingsSpelling" value="true"><span>开启</span></label>
+          <label><input type="radio" name="settingsSpelling" value="false"><span>关闭</span></label>
+        </div>
+      </div>
+      <div class="settings-group">
+        <span class="settings-label">释义展示</span>
+        <div class="settings-options settings-options-stack" role="radiogroup" aria-label="释义展示">
+          <label><input type="radio" name="settingsMeaning" value="SIMPLIFIED"><span><strong>简化</strong><small>只显示最常见的 2-3 个词义</small></span></label>
+          <label><input type="radio" name="settingsMeaning" value="DETAILED"><span><strong>详细</strong><small>显示全部词义</small></span></label>
+        </div>
+      </div>
+      <div class="settings-state" id="settingsState" role="status" aria-live="polite" hidden></div>
+    </section>
+  </div>
+
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
   <template id="wordSkeletonTemplate">
     <div class="word-row skeleton-row" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   </template>
 
-  <script src="/app.js?v=20260810-meactions" defer></script>
+  <script src="/app.js?v=20260813-redesign" defer></script>
 </body>
 </html>

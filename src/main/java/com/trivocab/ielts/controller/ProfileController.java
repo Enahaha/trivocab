@@ -4,9 +4,13 @@ import com.trivocab.ielts.common.ApiResponse;
 import com.trivocab.ielts.common.CurrentUserProvider;
 import com.trivocab.ielts.dto.DailyGoalRequest;
 import com.trivocab.ielts.dto.DailyGoalResponse;
+import com.trivocab.ielts.dto.LearningModeRequest;
+import com.trivocab.ielts.dto.LearningModeResponse;
 import com.trivocab.ielts.dto.BookSelectionRequest;
 import com.trivocab.ielts.dto.BookSelectionResponse;
 import com.trivocab.ielts.dto.CheckinResponse;
+import com.trivocab.ielts.dto.SettingsResponse;
+import com.trivocab.ielts.dto.SettingsUpdateRequest;
 import com.trivocab.ielts.dto.StudyStatsResponse;
 import com.trivocab.ielts.service.BookSelectionService;
 import com.trivocab.ielts.service.ProfileService;
@@ -74,6 +78,40 @@ public class ProfileController {
             @RequestParam int month
     ) {
         return ApiResponse.ok(profileStatsService.checkins(currentUser.userId(), year, month));
+    }
+
+    @GetMapping("/learning-mode")
+    public ApiResponse<LearningModeResponse> learningMode() {
+        return ApiResponse.ok(
+                new LearningModeResponse(profileService.learningMode(currentUser.userId()))
+        );
+    }
+
+    @PutMapping("/learning-mode")
+    public ApiResponse<LearningModeResponse> updateLearningMode(
+            @Valid @RequestBody LearningModeRequest request
+    ) {
+        return ApiResponse.ok(
+                new LearningModeResponse(
+                        profileService.updateLearningMode(currentUser.userId(), request.learningMode())
+                ),
+                "学习方式已更新"
+        );
+    }
+
+    @GetMapping("/settings")
+    public ApiResponse<SettingsResponse> settings() {
+        return ApiResponse.ok(profileService.settings(currentUser.userId()));
+    }
+
+    @PutMapping("/settings")
+    public ApiResponse<SettingsResponse> updateSettings(
+            @Valid @RequestBody SettingsUpdateRequest request
+    ) {
+        return ApiResponse.ok(
+                profileService.updateSettings(currentUser.userId(), request),
+                "设置已保存"
+        );
     }
 
     @PatchMapping("/daily-goal")

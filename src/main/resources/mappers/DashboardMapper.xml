@@ -37,7 +37,6 @@
                    WHERE p.user_id = #{userId}
                      AND w.book_id = #{bookId}
                      AND p.next_review_at &lt;= #{now}
-                     AND p.status &lt;&gt; 'MASTERED'
                ) AS due_words,
                (
                    SELECT COUNT(DISTINCT r.word_id)

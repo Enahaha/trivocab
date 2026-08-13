@@ -31,4 +31,16 @@ public interface WordMapper {
             @Param("userId") long userId,
             @Param("limit") int limit
     );
+
+    /**
+     * Look-alike meaning options for the given word, from the same book and
+     * excluding the word itself. Prefers words sharing the leading letters,
+     * then similar length, and orders ties randomly so options vary.
+     */
+    List<WordRow> findDistractors(
+            @Param("bookId") long bookId,
+            @Param("wordId") long wordId,
+            @Param("word") String word,
+            @Param("limit") int limit
+    );
 }

@@ -20,6 +20,8 @@ public interface AuthMapper {
 
     int updateLastLogin(@Param("userId") long userId, @Param("lastLoginAt") LocalDateTime lastLoginAt);
 
+    int updateTimeZone(@Param("userId") long userId, @Param("timeZone") String timeZone);
+
     int updatePassword(@Param("userId") long userId, @Param("passwordHash") String passwordHash);
 
     int invalidateActiveResetTokens(

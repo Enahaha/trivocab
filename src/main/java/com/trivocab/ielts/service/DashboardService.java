@@ -1,5 +1,6 @@
 package com.trivocab.ielts.service;
 
+import com.trivocab.ielts.common.UserTimezoneProvider;
 import com.trivocab.ielts.domain.DashboardStatsRow;
 import com.trivocab.ielts.dto.BookSummaryResponse;
 import com.trivocab.ielts.dto.DashboardResponse;
@@ -22,30 +23,31 @@ public class DashboardService {
     private final DashboardMapper dashboardMapper;
     private final VocabularyService vocabularyService;
     private final Clock clock;
-    private final ZoneId applicationZoneId;
+    private final UserTimezoneProvider userTimezoneProvider;
 
     public DashboardService(
             DashboardMapper dashboardMapper,
             VocabularyService vocabularyService,
             Clock clock,
-            ZoneId applicationZoneId
+            UserTimezoneProvider userTimezoneProvider
     ) {
         this.dashboardMapper = dashboardMapper;
         this.vocabularyService = vocabularyService;
         this.clock = clock;
-        this.applicationZoneId = applicationZoneId;
+        this.userTimezoneProvider = userTimezoneProvider;
     }
 
     public DashboardResponse dashboard(long bookId, long userId) {
         BookSummaryResponse book = vocabularyService.getBook(bookId, userId);
         Instant instant = clock.instant();
         LocalDateTime now = LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
-        ZonedDateTime localNow = instant.atZone(applicationZoneId);
+        ZoneId userZone = userTimezoneProvider.zoneOf(userId);
+        ZonedDateTime localNow = instant.atZone(userZone);
         LocalDate today = localNow.toLocalDate();
-        LocalDateTime dayStart = today.atStartOfDay(applicationZoneId)
+        LocalDateTime dayStart = today.atStartOfDay(userZone)
                 .withZoneSameInstant(ZoneOffset.UTC)
                 .toLocalDateTime();
-        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay(applicationZoneId)
+        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay(userZone)
                 .withZoneSameInstant(ZoneOffset.UTC)
                 .toLocalDateTime();
         DashboardStatsRow stats = dashboardMapper.findStats(
@@ -53,7 +55,8 @@ public class DashboardService {
         );
         int streakDays = calculateStreak(
                 dashboardMapper.findReviewTimesBefore(userId, dayEnd),
-                today
+                today,
+                userZone
         );
 
         int total = value(stats.getTotalWords());
@@ -82,12 +85,12 @@ public class DashboardService {
         );
     }
 
-    private int calculateStreak(List<LocalDateTime> reviewTimes, LocalDate today) {
+    private int calculateStreak(List<LocalDateTime> reviewTimes, LocalDate today, ZoneId userZone) {
         Set<LocalDate> activeDays = new HashSet<>();
         for (LocalDateTime reviewTime : reviewTimes) {
             LocalDate localDate = reviewTime
                     .atOffset(ZoneOffset.UTC)
-                    .atZoneSameInstant(applicationZoneId)
+                    .atZoneSameInstant(userZone)
                     .toLocalDate();
             activeDays.add(localDate);
         }

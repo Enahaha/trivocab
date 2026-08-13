@@ -1,66 +1,70 @@
 :root {
-  --canvas: #edf0eb;
-  --canvas-deep: #e4e9e3;
-  --surface: #f8faf6;
+  --canvas: #f4f2eb;
+  --canvas-deep: #ebe8df;
+  --surface: #faf9f4;
   --surface-raised: #ffffff;
-  --surface-muted: #e8ece7;
-  --surface-strong: #dfe5df;
-  --ink: #142019;
-  --ink-soft: #5c6861;
-  --ink-faint: #737f78;
-  --line: rgba(25, 49, 37, .13);
-  --line-strong: rgba(25, 49, 37, .23);
-  --accent: #2f6a50;
-  --accent-strong: #1e4c39;
-  --accent-soft: #dce9e0;
-  --accent-faint: #eef5f0;
-  --on-accent: #f4f8f5;
-  --sidebar: #14261e;
-  --sidebar-soft: #1c3429;
-  --sidebar-ink: #eef4f0;
-  --danger: #a85149;
-  --danger-soft: #f5e7e4;
-  --warning: #8a6a2b;
-  --warning-soft: #f4edde;
-  --shadow-sm: 0 12px 32px rgba(34, 57, 45, .07);
-  --shadow-lg: 0 30px 80px rgba(25, 50, 38, .16);
+  --surface-muted: #efece3;
+  --surface-strong: #e6e2d7;
+  --ink: #18211b;
+  --ink-soft: #5c655e;
+  --ink-faint: #879087;
+  --line: rgba(31, 92, 69, .15);
+  --line-strong: rgba(31, 92, 69, .27);
+  --accent: #1f5c45;
+  --accent-strong: #164532;
+  --accent-soft: #dbe9e0;
+  --accent-faint: #edf4ee;
+  --on-accent: #f4faf6;
+  --sidebar: #12251c;
+  --sidebar-soft: #1b3428;
+  --sidebar-ink: #edf4ef;
+  --danger: #a64a42;
+  --danger-soft: #f6e8e5;
+  --warning: #96661d;
+  --warning-soft: #f4ecdc;
+  --shadow-sm: 0 1px 2px rgba(31, 92, 69, .06), 0 12px 32px rgba(31, 92, 69, .07);
+  --shadow-lg: 0 28px 80px rgba(24, 55, 41, .14);
   --radius-control: 11px;
-  --radius-card: 18px;
+  --radius-card: 17px;
   --sidebar-width: 248px;
   --ease-out: cubic-bezier(.16, 1, .3, 1);
-  color-scheme: light;
-  font-family: "Avenir Next", Avenir, "Noto Sans SC", "Noto Sans KR", Pretendard,
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
+    "Songti SC", "Noto Serif SC", Georgia, serif;
+  --font-sans: "Avenir Next", Avenir, Pretendard, "Noto Sans SC", "Noto Sans KR",
     "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "IBM Plex Mono", Consolas, monospace;
+  color-scheme: light;
+  font-family: var(--font-sans);
   font-synthesis: none;
 }
 
 html[data-theme="dark"] {
-  --canvas: #111713;
-  --canvas-deep: #0d120f;
-  --surface: #171e19;
-  --surface-raised: #1c2520;
-  --surface-muted: #222d27;
-  --surface-strong: #29362f;
-  --ink: #edf3ef;
-  --ink-soft: #a8b3ac;
-  --ink-faint: #8c9891;
-  --line: rgba(225, 239, 230, .11);
-  --line-strong: rgba(225, 239, 230, .21);
-  --accent: #79b292;
-  --accent-strong: #a7d1b8;
-  --accent-soft: #243c31;
-  --accent-faint: #1c2a23;
-  --on-accent: #102019;
-  --sidebar: #0b110e;
-  --sidebar-soft: #101a15;
+  --canvas: #101512;
+  --canvas-deep: #0b0f0c;
+  --surface: #151c17;
+  --surface-raised: #1a231d;
+  --surface-muted: #202a23;
+  --surface-strong: #27332b;
+  --ink: #eef3f0;
+  --ink-soft: #a7b1aa;
+  --ink-faint: #87928b;
+  --line: rgba(226, 240, 231, .12);
+  --line-strong: rgba(226, 240, 231, .22);
+  --accent: #7bb395;
+  --accent-strong: #9ccbb0;
+  --accent-soft: #233a2f;
+  --accent-faint: #1a2a21;
+  --on-accent: #0f1e16;
+  --sidebar: #0a100c;
+  --sidebar-soft: #111a14;
   --sidebar-ink: #edf3ef;
-  --danger: #e4978f;
+  --danger: #e3968f;
   --danger-soft: #3c2725;
-  --warning: #d8bd7b;
+  --warning: #d9bd79;
   --warning-soft: #352f20;
-  --shadow-sm: 0 14px 38px rgba(0, 0, 0, .18);
-  --shadow-lg: 0 32px 90px rgba(0, 0, 0, .35);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .2), 0 14px 38px rgba(0, 0, 0, .16);
+  --shadow-lg: 0 30px 88px rgba(0, 0, 0, .34);
   color-scheme: dark;
 }
 
@@ -78,7 +82,9 @@ body {
   min-height: 100dvh;
   margin: 0;
   color: var(--ink);
-  background: var(--canvas);
+  background:
+    radial-gradient(circle at 88% -4%, rgba(31, 92, 69, .07), transparent 30rem),
+    var(--canvas);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -155,8 +161,9 @@ button:active:not(:disabled) {
   border-radius: 13px;
   color: var(--on-accent);
   background: var(--accent);
-  font-size: 18px;
-  font-weight: 820;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 760;
 }
 
 .admin-boot strong {
@@ -196,8 +203,8 @@ button:active:not(:disabled) {
   flex-direction: column;
   color: var(--sidebar-ink);
   background:
-    radial-gradient(circle at 9% 0%, rgba(125, 183, 151, .16), transparent 25rem),
-    linear-gradient(165deg, var(--sidebar-soft), var(--sidebar));
+    radial-gradient(circle at 9% 0%, rgba(123, 179, 149, .17), transparent 25rem),
+    linear-gradient(168deg, var(--sidebar-soft), var(--sidebar));
   border-right: 1px solid rgba(255, 255, 255, .06);
 }
 
@@ -221,11 +228,12 @@ button:active:not(:disabled) {
 
 .admin-brand strong {
   font-size: 16px;
+  letter-spacing: -.01em;
 }
 
 .admin-brand small {
   color: rgba(238, 244, 240, .58);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 8px;
   letter-spacing: .09em;
 }
@@ -424,10 +432,11 @@ html[data-theme="dark"] .admin-theme-toggle i {
 .admin-page-heading h1 {
   margin: 0;
   color: var(--ink);
-  font-size: clamp(29px, 3.2vw, 40px);
-  font-weight: 710;
-  letter-spacing: -.045em;
-  line-height: 1.1;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3.2vw, 41px);
+  font-weight: 600;
+  letter-spacing: -.035em;
+  line-height: 1.08;
 }
 
 .admin-page-heading p {
@@ -525,7 +534,7 @@ html[data-theme="dark"] .admin-theme-toggle i {
 .admin-metric strong {
   margin-block: 15px 9px;
   color: var(--ink);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: clamp(32px, 4.2vw, 47px);
   font-weight: 630;
   letter-spacing: -.05em;
@@ -550,6 +559,7 @@ html[data-theme="dark"] .admin-theme-toggle i {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-toolbar-filter {
@@ -660,7 +670,8 @@ html[data-theme="dark"] .admin-theme-toggle i {
   height: 41px;
   padding: 0 13px;
   color: var(--ink-faint);
-  background: var(--surface);
+  background: var(--surface-muted);
+  font-family: var(--font-mono);
   font-size: 8px;
   font-weight: 740;
   letter-spacing: .04em;
@@ -728,8 +739,8 @@ html[data-theme="dark"] .admin-theme-toggle i {
 
 .admin-word-cell strong {
   color: var(--accent-strong);
-  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  font-size: 17px;
+  font-family: var(--font-display);
+  font-size: 18px;
   font-weight: 620;
 }
 
@@ -815,7 +826,9 @@ html[data-theme="dark"] .admin-theme-toggle i {
 
 .admin-empty strong {
   color: var(--ink);
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 620;
 }
 
 .admin-empty p {
@@ -1035,8 +1048,10 @@ body {
 
 .admin-modal h2 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 23px;
-  letter-spacing: -.035em;
+  font-weight: 620;
+  letter-spacing: -.025em;
 }
 
 .admin-confirm-modal > p,

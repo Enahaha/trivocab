@@ -25,7 +25,7 @@ jobs:
         run: |
           jpackage --type app-image `
             --name TrVocab `
-            --app-version 1.1.0 `
+            --app-version 1.2.0 `
             --icon packaging/TrVocab.ico `
             --input target `
             --main-jar ielts-vocabulary-0.1.0-SNAPSHOT.jar `
@@ -44,17 +44,17 @@ jobs:
           jpackage --type exe `
             --app-image dist/TrVocab `
             --name TrVocab `
-            --app-version 1.1.0 `
+            --app-version 1.2.0 `
             --icon packaging/TrVocab.ico `
             --dest dist
 
       - name: Create portable zip
         shell: pwsh
-        run: Compress-Archive -Path dist/TrVocab -DestinationPath dist/TrVocab-1.1.0-windows.zip -Force
+        run: Compress-Archive -Path dist/TrVocab -DestinationPath dist/TrVocab-1.2.0-windows.zip -Force
 
       - uses: actions/upload-artifact@v4
         with:
           name: trivocab-windows
           path: |
-            dist/TrVocab-1.1.0.exe
-            dist/TrVocab-1.1.0-windows.zip
+            dist/TrVocab-1.2.0.exe
+            dist/TrVocab-1.2.0-windows.zip

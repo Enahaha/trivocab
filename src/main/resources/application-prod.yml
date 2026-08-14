@@ -4,6 +4,13 @@ spring:
     driver-class-name: org.h2.Driver
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          no-cache: true
+          no-store: true
+          must-revalidate: true
 
 server:
   port: ${SERVER_PORT:8080}

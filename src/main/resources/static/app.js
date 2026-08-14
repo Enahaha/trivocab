@@ -246,8 +246,23 @@
     renderDate();
     syncThemeControl();
     bindEvents();
+    startHeartbeat();
     syncStudyEntryAvailability();
     authenticateAndStart();
+  }
+
+  function startHeartbeat() {
+    if (state.__heartbeatStarted) return;
+    state.__heartbeatStarted = true;
+    const beat = () => {
+      fetch(`${API_BASE}/system/heartbeat`, {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true
+      }).catch(() => {});
+    };
+    beat();
+    window.setInterval(beat, 8000);
   }
 
   function bindEvents() {
@@ -967,8 +982,6 @@
     if (!entry.__flee) {
       const rect = runner.getBoundingClientRect();
       entry.__flee = {
-        originX: rect.left,
-        originY: rect.top,
         x: rect.left,
         y: rect.top,
         vx: 0,
@@ -1032,8 +1045,10 @@
       targetVx = directionX * speed;
       targetVy = directionY * speed;
     } else {
-      const toOriginX = flee.originX - flee.x;
-      const toOriginY = flee.originY - flee.y;
+      // 回家位置用“当前占位元素”的实时视口坐标，页面滚动时按钮会跟着平滑回原位。
+      const originRect = entry.getBoundingClientRect();
+      const toOriginX = originRect.left - flee.x;
+      const toOriginY = originRect.top - flee.y;
       const toOriginLength = Math.hypot(toOriginX, toOriginY);
       if (toOriginLength < 2) {
         finishReviewFlee(entry, runner, bubble);
@@ -1057,9 +1072,11 @@
     flee.x += flee.vx * dt;
     flee.y += flee.vy * dt;
 
-    const pad = 14;
-    flee.x = clamp(flee.x, pad, Math.max(pad, window.innerWidth - width - pad));
-    flee.y = clamp(flee.y, pad, Math.max(pad, window.innerHeight - height - pad));
+    if (shouldFlee) {
+      const pad = 14;
+      flee.x = clamp(flee.x, pad, Math.max(pad, window.innerWidth - width - pad));
+      flee.y = clamp(flee.y, pad, Math.max(pad, window.innerHeight - height - pad));
+    }
     runner.style.left = `${flee.x}px`;
     runner.style.top = `${flee.y}px`;
 

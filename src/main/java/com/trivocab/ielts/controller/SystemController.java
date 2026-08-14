@@ -1,6 +1,7 @@
 package com.trivocab.ielts.controller;
 
 import com.trivocab.ielts.common.ApiResponse;
+import com.trivocab.ielts.common.DesktopLifecycle;
 import com.trivocab.ielts.exception.ForbiddenException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,11 +19,20 @@ import java.util.List;
 @RequestMapping("/api/v1/system")
 public class SystemController {
     private final boolean allowShutdown;
+    private final DesktopLifecycle lifecycle;
 
     public SystemController(
-            @Value("${app.allow-shutdown:false}") boolean allowShutdown
+            @Value("${app.allow-shutdown:false}") boolean allowShutdown,
+            DesktopLifecycle lifecycle
     ) {
         this.allowShutdown = allowShutdown;
+        this.lifecycle = lifecycle;
+    }
+
+    @PostMapping("/heartbeat")
+    public ApiResponse<Void> heartbeat() {
+        lifecycle.heartbeat();
+        return ApiResponse.ok(null, "ok");
     }
 
     @PostMapping("/shutdown")

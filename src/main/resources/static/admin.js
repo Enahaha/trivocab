@@ -975,7 +975,7 @@
     elements.themeToggle.setAttribute("aria-pressed", String(dark));
     elements.themeToggle.setAttribute("aria-label", dark ? "切换为浅色模式" : "切换为深色模式");
     elements.themeLabel.textContent = dark ? "深色" : "浅色";
-    elements.themeColorMeta.setAttribute("content", dark ? "#101512" : "#f4f2eb");
+    elements.themeColorMeta.setAttribute("content", dark ? "#10111f" : "#edf0f8");
   }
 
   function showToast(message, type = "success") {

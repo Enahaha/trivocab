@@ -54,9 +54,29 @@ public class StudyService {
     }
 
     public List<WordCardResponse> queue(long bookId, long userId, int requestedLimit) {
+        return queue(bookId, userId, requestedLimit, "mixed");
+    }
+
+    public List<WordCardResponse> queue(long bookId, long userId, int requestedLimit, String type) {
         vocabularyService.getBook(bookId, userId);
         int limit = Math.min(100, Math.max(1, requestedLimit));
         LocalDateTime now = LocalDateTime.now(clock);
+        boolean immersive = isImmersive(userId);
+
+        if ("review".equalsIgnoreCase(type)) {
+            return wordMapper.findDueWords(bookId, userId, now, limit)
+                    .stream()
+                    .map(WordCardResponse::from)
+                    .toList();
+        }
+        if ("learn".equalsIgnoreCase(type)) {
+            return wordMapper.findNewWords(bookId, userId, limit)
+                    .stream()
+                    .map(row -> immersive
+                            ? WordCardResponse.from(row, distractors(bookId, row))
+                            : WordCardResponse.from(row))
+                    .toList();
+        }
 
         List<WordCardResponse> result = new ArrayList<>(limit);
         wordMapper.findDueWords(bookId, userId, now, limit)
@@ -66,7 +86,6 @@ public class StudyService {
 
         int remaining = limit - result.size();
         if (remaining > 0) {
-            boolean immersive = isImmersive(userId);
             wordMapper.findNewWords(bookId, userId, remaining)
                     .stream()
                     .map(row -> immersive

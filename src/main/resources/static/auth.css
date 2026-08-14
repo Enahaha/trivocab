@@ -1,63 +1,65 @@
 :root {
-  --canvas: #f4f2eb;
-  --canvas-deep: #ebe8df;
-  --surface: #faf9f4;
+  --canvas: #edf0f8;
+  --canvas-deep: #e3e7f2;
+  --surface: #f6f7fc;
   --surface-raised: #ffffff;
-  --surface-muted: #efece3;
-  --surface-strong: #e6e2d7;
-  --ink: #18211b;
-  --ink-soft: #5c655e;
-  --ink-faint: #879087;
-  --line: rgba(31, 92, 69, .15);
-  --line-strong: rgba(31, 92, 69, .27);
-  --accent: #1f5c45;
-  --accent-strong: #164532;
-  --accent-soft: #dbe9e0;
-  --accent-faint: #edf4ee;
-  --on-accent: #f4faf6;
-  --forest: #12251c;
-  --forest-soft: #1f4433;
-  --danger: #a64a42;
-  --danger-soft: #f6e8e5;
-  --success-soft: #e7f0ea;
-  --shadow: 0 28px 80px rgba(24, 55, 41, .13);
-  --radius-control: 11px;
-  --radius-panel: 22px;
+  --surface-muted: #e9ebf6;
+  --surface-strong: #dcdff0;
+  --ink: #191a34;
+  --ink-soft: #50546e;
+  --ink-faint: #7b7f98;
+  --line: rgba(39, 42, 96, .14);
+  --line-strong: rgba(39, 42, 96, .26);
+  --accent: #ff3d68;
+  --accent-strong: #e1234e;
+  --accent-soft: #ffe1e9;
+  --accent-faint: #fff0f4;
+  --on-accent: #ffffff;
+  --forest: #161730;
+  --forest-soft: #2a2b4e;
+  --danger: #e8455e;
+  --danger-soft: #ffe6e9;
+  --success-soft: #d8f3ed;
+  --shadow: 0 28px 80px rgba(25, 26, 52, .16);
+  --radius-control: 12px;
+  --radius-panel: 24px;
   --ease-out: cubic-bezier(.16, 1, .3, 1);
-  --font-display: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC",
-    "Songti SC", "Noto Serif SC", Georgia, serif;
-  --font-sans: "Avenir Next", Avenir, Pretendard, "Noto Sans SC", "Noto Sans KR",
-    "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", "IBM Plex Mono", Consolas, monospace;
+  --font-display: ui-rounded, "SF Pro Rounded", "Avenir Next", "Futura",
+    "Pretendard", "Noto Sans SC", "Noto Sans KR", "PingFang SC",
+    "Microsoft YaHei", system-ui, sans-serif;
+  --font-sans: Pretendard, "Noto Sans SC", "Noto Sans KR", "PingFang SC",
+    "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", "IBM Plex Mono", Consolas,
+    monospace;
   color-scheme: light;
   font-family: var(--font-sans);
   font-synthesis: none;
 }
 
 html[data-theme="dark"] {
-  --canvas: #101512;
-  --canvas-deep: #0b0f0c;
-  --surface: #151c17;
-  --surface-raised: #1a231d;
-  --surface-muted: #202a23;
-  --surface-strong: #27332b;
-  --ink: #eef3f0;
-  --ink-soft: #a7b1aa;
-  --ink-faint: #87928b;
-  --line: rgba(226, 240, 231, .12);
-  --line-strong: rgba(226, 240, 231, .22);
-  --accent: #7bb395;
-  --accent-strong: #9ccbb0;
-  --accent-soft: #233a2f;
-  --accent-faint: #1a2a21;
-  --on-accent: #0f1e16;
-  --forest: #0a100c;
-  --forest-soft: #173126;
-  --danger: #e3968f;
-  --danger-soft: #3c2725;
-  --success-soft: #203329;
-  --shadow: 0 30px 88px rgba(0, 0, 0, .34);
+  --canvas: #10111f;
+  --canvas-deep: #0b0c17;
+  --surface: #181a2c;
+  --surface-raised: #202238;
+  --surface-muted: #292b46;
+  --surface-strong: #34375a;
+  --ink: #eff1ff;
+  --ink-soft: #b9bcd6;
+  --ink-faint: #8a8da8;
+  --line: rgba(208, 211, 255, .14);
+  --line-strong: rgba(208, 211, 255, .26);
+  --accent: #ff5c7a;
+  --accent-strong: #ff7a92;
+  --accent-soft: #3a2230;
+  --accent-faint: #241824;
+  --on-accent: #2a0a13;
+  --forest: #0b0c18;
+  --forest-soft: #17182e;
+  --danger: #ff6b81;
+  --danger-soft: #3c2430;
+  --success-soft: #143b37;
+  --shadow: 0 30px 88px rgba(0, 0, 0, .4);
   color-scheme: dark;
 }
 

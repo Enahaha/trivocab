@@ -8,6 +8,18 @@
   const MAX_DAILY_GOAL = 100;
   const DAILY_GOAL_STEP = 10;
   const RETRY_GAP_SIZE = 3;
+  const REVIEW_FLEE_DANGER_RADIUS = 220;
+  const REVIEW_FLEE_AVOID_RADIUS = 340;
+  const REVIEW_FLEE_BASE_SPEED = 0.06;
+  const REVIEW_FLEE_MAX_SPEED = 0.24;
+  const REVIEW_RETURN_SPEED = 0.14;
+  const REVIEW_FLEE_SMOOTH = 0.16;
+  const REVIEW_CURSOR_ACTIVE_MS = 320;
+  let reviewCursorX = -9999;
+  let reviewCursorY = -9999;
+  let reviewCursorVx = 0;
+  let reviewCursorVy = 0;
+  let reviewCursorMovedAt = 0;
   const LEARN_STAGE_FIRST = "first";
   const LEARN_STAGE_REVIEW1 = "review1";
   const LEARN_STAGE_REVIEW2 = "review2";
@@ -26,6 +38,7 @@
     dashboard: null,
     dashboardReady: false,
     todayReviewed: 0,
+    dueCount: 0,
     books: [],
     words: [],
     wordPage: 0,
@@ -100,6 +113,12 @@
     settingsSpellingRadios: [...document.querySelectorAll('input[name="settingsSpelling"]')],
     settingsMeaningRadios: [...document.querySelectorAll('input[name="settingsMeaning"]')],
     dueCount: document.querySelector("#dueCount"),
+    reviewButtons: [...document.querySelectorAll("[data-start-review]")],
+    reviewBadges: [...document.querySelectorAll("[data-review-badge]")],
+    reviewPromptModal: document.querySelector("#reviewPromptModal"),
+    reviewPromptMessage: document.querySelector("#reviewPromptMessage"),
+    goReviewButton: document.querySelector("#goReviewButton"),
+    continueStudyButton: document.querySelector("#continueStudyButton"),
     todayLearnedCount: document.querySelector("#todayLearnedCount"),
     masteredCount: document.querySelector("#masteredCount"),
     streakCount: document.querySelector("#streakCount"),
@@ -241,9 +260,36 @@
     });
 
     elements.startButtons.forEach((button) => {
-      button.addEventListener("click", () => startStudy({
-        extraBatch: state.currentBatchIsExtra && elements.studyError.contains(button)
-      }));
+      button.addEventListener("click", () => handleStudyStart(button));
+    });
+    elements.reviewButtons.forEach((button) => {
+      button.addEventListener("click", () => handleReviewStart(button));
+      button.addEventListener("pointerenter", (event) => startReviewFlee(button, event.clientX, event.clientY));
+      button.addEventListener("focus", () => startReviewFlee(button));
+    });
+    document.addEventListener("pointermove", (event) => {
+      const now = performance.now();
+      if (reviewCursorMovedAt > 0) {
+        const dtMs = now - reviewCursorMovedAt;
+        if (dtMs > 0) {
+          reviewCursorVx = (event.clientX - reviewCursorX) / dtMs;
+          reviewCursorVy = (event.clientY - reviewCursorY) / dtMs;
+        }
+      }
+      reviewCursorX = event.clientX;
+      reviewCursorY = event.clientY;
+      reviewCursorMovedAt = now;
+    });
+    elements.goReviewButton.addEventListener("click", () => {
+      closeReviewPrompt();
+      startStudy({ reviewOnly: true });
+    });
+    elements.continueStudyButton.addEventListener("click", () => {
+      closeReviewPrompt();
+      startStudy({});
+    });
+    elements.reviewPromptModal.addEventListener("click", (event) => {
+      if (event.target === elements.reviewPromptModal) closeReviewPrompt();
     });
     elements.themeToggle.addEventListener("click", toggleTheme);
     elements.settingsButton.addEventListener("click", openSettingsModal);
@@ -346,6 +392,7 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !elements.settingsModal.hidden) closeSettingsModal();
       else if (event.key === "Escape" && !elements.statsModal.hidden) closeStatsModal();
+      else if (event.key === "Escape" && !elements.reviewPromptModal.hidden) closeReviewPrompt();
     });
   }
 
@@ -782,6 +829,7 @@
 
     state.dailyGoal = dailyGoal;
     state.todayReviewed = Math.max(0, todayReviewed);
+    state.dueCount = Math.max(0, dueWords);
     state.planTotalWords = Math.max(0, totalWords);
     state.planLearnedWords = clamp(learnedWords, 0, state.planTotalWords);
     syncDailyGoalSelect(dailyGoal);
@@ -812,6 +860,7 @@
     elements.sidebarProgress.style.width = `${dailyProgress}%`;
     updateProgressAccessibility(elements.sidebarProgressTrack, dailyProgress, `${todayReviewed} / ${dailyGoal} 个词`);
     syncStudyEntryAvailability();
+    syncReviewEntry();
 
     if (todayReviewed >= dailyGoal) {
       setText(elements.planMessage, "今日目标已完成，仍可继续学习：多背一组更扎实。");
@@ -845,6 +894,193 @@
         button.removeAttribute("title");
       }
     });
+  }
+
+  function syncReviewEntry() {
+    const dueCount = Math.max(0, state.dueCount || 0);
+    elements.reviewBadges.forEach((badge) => {
+      badge.textContent = formatNumber(dueCount);
+      badge.hidden = dueCount <= 0;
+    });
+    elements.reviewButtons.forEach((button) => {
+      const done = dueCount <= 0;
+      const entry = button.closest(".review-entry");
+      button.classList.toggle("is-review-done", done);
+      if (entry) entry.classList.toggle("is-review-done", done);
+      if (done) {
+        button.setAttribute("aria-disabled", "true");
+        const label = button.querySelector("span:not(.review-badge)");
+        if (label) label.textContent = "已复习完";
+      } else {
+        button.removeAttribute("aria-disabled");
+        const label = button.querySelector("span:not(.review-badge)");
+        if (label) label.textContent = "复习";
+      }
+    });
+  }
+
+  function openReviewPrompt() {
+    elements.reviewPromptModal.hidden = false;
+    document.body.classList.add("has-modal");
+    elements.appShell.setAttribute("inert", "");
+  }
+
+  function closeReviewPrompt() {
+    elements.reviewPromptModal.hidden = true;
+    document.body.classList.remove("has-modal");
+    elements.appShell.removeAttribute("inert");
+  }
+
+  function handleStudyStart(button) {
+    const isRetry = elements.studyError && elements.studyError.contains(button);
+    if (!isRetry && state.dueCount > 0) {
+      setText(elements.reviewPromptMessage, `还有 ${formatNumber(state.dueCount)} 个到期单词待复习，要先去复习吗？`);
+      openReviewPrompt();
+      return;
+    }
+    startStudy({
+      extraBatch: state.currentBatchIsExtra && isRetry
+    });
+  }
+
+  function handleReviewStart(button) {
+    if (state.dueCount <= 0) {
+      startReviewFlee(button);
+      return;
+    }
+    startStudy({ reviewOnly: true });
+  }
+
+  function startReviewFlee(button, pointerX, pointerY) {
+    const entry = button.closest(".review-entry");
+    if (!entry || state.dueCount > 0) return;
+    const runner = entry.querySelector(".review-runner");
+    const bubble = entry.querySelector("[data-review-bubble]");
+    if (!runner) return;
+
+    if (pointerX != null && pointerY != null) {
+      reviewCursorX = pointerX;
+      reviewCursorY = pointerY;
+      reviewCursorMovedAt = performance.now();
+    }
+
+    if (!entry.__flee) {
+      const rect = runner.getBoundingClientRect();
+      entry.__flee = {
+        originX: rect.left,
+        originY: rect.top,
+        x: rect.left,
+        y: rect.top,
+        vx: 0,
+        vy: 0,
+        lastFrame: performance.now(),
+        raf: 0
+      };
+      entry.style.width = `${entry.offsetWidth}px`;
+      // 传送到 body：摆脱带 transform 的祖先，保证 fixed 相对视口定位。
+      document.body.appendChild(runner);
+      runner.style.position = "fixed";
+      runner.style.left = `${rect.left}px`;
+      runner.style.top = `${rect.top}px`;
+      runner.style.margin = "0";
+      runner.style.zIndex = "80";
+    }
+
+    if (bubble) bubble.hidden = false;
+    runner.classList.add("is-running");
+    if (!entry.__flee.raf) {
+      entry.__flee.raf = requestAnimationFrame((time) => reviewFleeFrame(entry, runner, bubble, time));
+    }
+  }
+
+  function reviewFleeFrame(entry, runner, bubble, time) {
+    const flee = entry.__flee;
+    if (!flee) return;
+
+    const width = runner.offsetWidth || 170;
+    const height = runner.offsetHeight || 48;
+    const centerX = flee.x + width / 2;
+    const centerY = flee.y + height / 2;
+    const cursorDistance = Math.hypot(reviewCursorX - centerX, reviewCursorY - centerY);
+    const awayX = centerX - reviewCursorX;
+    const awayY = centerY - reviewCursorY;
+    const awayLength = Math.hypot(awayX, awayY) || 1;
+    const dt = Math.min(32, Math.max(0, time - (flee.lastFrame || time)));
+    flee.lastFrame = time;
+
+    const cursorActive = time - reviewCursorMovedAt < REVIEW_CURSOR_ACTIVE_MS;
+    const shouldFlee = cursorActive && cursorDistance < REVIEW_FLEE_DANGER_RADIUS;
+
+    let targetVx = 0;
+    let targetVy = 0;
+
+    if (shouldFlee) {
+      // 老鼠看见猫：朝远离猫的方向跑，猫越近跑得越快；
+      // 猫贴着老鼠时，改为往猫移动的反方向跑，避免方向乱跳。
+      let directionX;
+      let directionY;
+      const cursorVelocity = Math.hypot(reviewCursorVx, reviewCursorVy);
+      if (cursorDistance < 30 && cursorVelocity > 0.03) {
+        directionX = -reviewCursorVx / cursorVelocity;
+        directionY = -reviewCursorVy / cursorVelocity;
+      } else {
+        directionX = awayX / awayLength;
+        directionY = awayY / awayLength;
+      }
+      const fear = clamp(1 - cursorDistance / REVIEW_FLEE_DANGER_RADIUS, 0, 1);
+      const speed = REVIEW_FLEE_BASE_SPEED + fear * (REVIEW_FLEE_MAX_SPEED - REVIEW_FLEE_BASE_SPEED);
+      targetVx = directionX * speed;
+      targetVy = directionY * speed;
+    } else {
+      const toOriginX = flee.originX - flee.x;
+      const toOriginY = flee.originY - flee.y;
+      const toOriginLength = Math.hypot(toOriginX, toOriginY);
+      if (toOriginLength < 2) {
+        finishReviewFlee(entry, runner, bubble);
+        return;
+      }
+      // 慢慢回家；路上若猫挡道，绕开它走。
+      const returnDirX = toOriginX / toOriginLength;
+      const returnDirY = toOriginY / toOriginLength;
+      const avoid = cursorActive
+        ? clamp(1 - cursorDistance / REVIEW_FLEE_AVOID_RADIUS, 0, 1)
+        : 0;
+      const steerX = returnDirX + (awayX / awayLength) * avoid * 1.5;
+      const steerY = returnDirY + (awayY / awayLength) * avoid * 1.5;
+      const steerLength = Math.hypot(steerX, steerY) || 1;
+      targetVx = (steerX / steerLength) * REVIEW_RETURN_SPEED;
+      targetVy = (steerY / steerLength) * REVIEW_RETURN_SPEED;
+    }
+
+    flee.vx += (targetVx - flee.vx) * REVIEW_FLEE_SMOOTH;
+    flee.vy += (targetVy - flee.vy) * REVIEW_FLEE_SMOOTH;
+    flee.x += flee.vx * dt;
+    flee.y += flee.vy * dt;
+
+    const pad = 14;
+    flee.x = clamp(flee.x, pad, Math.max(pad, window.innerWidth - width - pad));
+    flee.y = clamp(flee.y, pad, Math.max(pad, window.innerHeight - height - pad));
+    runner.style.left = `${flee.x}px`;
+    runner.style.top = `${flee.y}px`;
+
+    flee.raf = requestAnimationFrame((next) => reviewFleeFrame(entry, runner, bubble, next));
+  }
+
+  function finishReviewFlee(entry, runner, bubble) {
+    const flee = entry.__flee;
+    if (flee && flee.raf) {
+      cancelAnimationFrame(flee.raf);
+    }
+    entry.__flee = null;
+    runner.style.position = "";
+    runner.style.left = "";
+    runner.style.top = "";
+    runner.style.margin = "";
+    runner.style.zIndex = "";
+    runner.classList.remove("is-running");
+    entry.appendChild(runner);
+    entry.style.width = "";
+    if (bubble) bubble.hidden = true;
   }
 
   async function saveDailyGoal() {
@@ -1335,7 +1571,7 @@
     return Number.isNaN(date.getTime()) ? "" : date.toISOString();
   }
 
-  async function startStudy({ extraBatch = false } = {}) {
+  async function startStudy({ extraBatch = false, reviewOnly = false } = {}) {
     if (!state.dashboardReady) {
       showToast("正在读取今日进度，请稍候。", "error");
       return;
@@ -1349,7 +1585,7 @@
         && Number(snapshot.userId) === Number(state.user?.id)
         && Number(snapshot.bookId) === Number(state.bookId)) {
       const finished = Number(snapshot.queueIndex) >= snapshot.queue.length;
-      if (!finished && !extraBatch) {
+      if (!finished && !extraBatch && !reviewOnly) {
         if (state.currentRoute !== "study") state.previousRoute = state.currentRoute;
         navigate("study", { updateHash: false });
         state.currentBatchIsExtra = Boolean(snapshot.currentBatchIsExtra);
@@ -1379,8 +1615,10 @@
     const remainingGoal = Math.max(0, state.dailyGoal - state.todayReviewed);
     // 目标已完成（remainingGoal === 0）时不再拦截：按一整组继续学习，并标记为额外一组。
     const goalReached = remainingGoal === 0;
-    const queueLimit = (extraBatch || goalReached) ? state.dailyGoal : remainingGoal;
-    state.currentBatchIsExtra = extraBatch || goalReached;
+    const queueLimit = reviewOnly
+      ? 100
+      : ((extraBatch || goalReached) ? state.dailyGoal : remainingGoal);
+    state.currentBatchIsExtra = reviewOnly ? false : (extraBatch || goalReached);
     if (state.currentRoute !== "study") state.previousRoute = state.currentRoute;
     navigate("study", { updateHash: false });
     state.queue = [];
@@ -1399,7 +1637,11 @@
     updateStudyProgress();
 
     try {
-      const query = new URLSearchParams({ bookId: String(state.bookId), limit: String(queueLimit) });
+      const query = new URLSearchParams({
+        bookId: String(state.bookId),
+        limit: String(queueLimit),
+        type: reviewOnly ? "review" : "learn"
+      });
       const data = await apiRequest(`/study/queue?${query}`);
       state.initialWords = uniqueSessionWords(asArray(data));
       state.queue = buildStudyQueue(state.initialWords);
@@ -1749,8 +1991,9 @@
       const shuffledWords = shuffle([...newWords]);
       shuffledWords.forEach((word) => queue.push({ ...createQueueItem(word), __learnStage: LEARN_STAGE_FIRST }));
       shuffledWords.forEach((word) => {
-        insertReviewRandomly(queue, word, LEARN_STAGE_REVIEW1);
-        insertReviewRandomly(queue, word, LEARN_STAGE_REVIEW2);
+        // 用固定间距把第二遍/第三遍插进后面单词的第一遍之间，避免“先全部第一遍、再全部第二遍”。
+        insertReviewRandomly(queue, word, LEARN_STAGE_REVIEW1, 3);
+        insertReviewRandomly(queue, word, LEARN_STAGE_REVIEW2, 4);
       });
     } else {
       newWords.forEach((word) => queue.push(createQueueItem(word)));
@@ -1780,36 +2023,61 @@
     const partOfSpeech = word.partOfSpeech || "";
     const stage = word.__learnStage;
     const isRecall = stage === LEARN_STAGE_REVIEW1 || stage === LEARN_STAGE_REVIEW2 || stage === LEARN_STAGE_RECALL;
-    const prompt = isRecall
-      ? (stage === LEARN_STAGE_RECALL
-        ? "还记得这个词吗？（到期复习）"
-        : (stage === LEARN_STAGE_REVIEW2 ? "最后确认：还记得这个词吗？" : "还记得这个词吗？"))
-      : "选择正确释义（中文 / 한국어）";
-    const hint = isRecall ? "按 1 = 记得 · 2 = 不记得" : "按 1-4 选择选项";
+    const isRecallEnglish = stage === LEARN_STAGE_REVIEW2;
+    const prompt = isRecallEnglish
+      ? "看中韩释义，回想对应的英文单词。"
+      : (isRecall
+        ? (stage === LEARN_STAGE_RECALL ? "还记得这个词吗？（到期复习）" : "还记得这个词吗？")
+        : "选择正确释义（中文 / 한국어）");
+    const hint = isRecallEnglish
+      ? "按 1 = 想起来 · 2 = 想不起来"
+      : (isRecall ? "按 1 = 记得 · 2 = 不记得" : "按 1-4 选择选项");
 
-    setText(elements.studyRank, stage === LEARN_STAGE_FIRST ? "新词首学" : (stage === LEARN_STAGE_RECALL ? "到期复习" : (stage === LEARN_STAGE_REVIEW2 ? "组内回忆 · 最后确认" : "组内回忆")));
-    setText(elements.studyWord, word.word || "…");
-    setText(elements.studyPhonetic, phonetic);
-    setText(elements.studyPartOfSpeech, partOfSpeech);
-    elements.studyPhonetic.hidden = !phonetic;
-    elements.studyPartOfSpeech.hidden = !partOfSpeech;
-    elements.recallPrompt.innerHTML = `${escapeHtml(prompt)}<br><span>${escapeHtml(hint)}</span>`;
+    setText(elements.studyRank, stage === LEARN_STAGE_FIRST
+      ? "新词首学"
+      : (stage === LEARN_STAGE_RECALL
+        ? "到期复习"
+        : (stage === LEARN_STAGE_REVIEW2 ? "组内回忆 · 回想英文" : "组内回忆")));
     setText(elements.backWord, word.word || "…");
     setText(elements.backMeta, [phonetic, partOfSpeech].filter(Boolean).join(" · "));
+
     const simplified = state.settings.meaningDisplay === "SIMPLIFIED";
     const quizKorean = preferredKoreanMeaning(word);
-    setText(elements.chineseMeaning, simplified
+    const chinese = simplified
       ? (summarizeMeaning(word.chineseMeaning) || word.chineseMeaning || "中文释义待补充")
-      : (word.chineseMeaning || "中文释义待补充"));
-    setText(elements.koreanMeaning, simplified
+      : (word.chineseMeaning || "中文释义待补充");
+    const korean = simplified
       ? (summarizeMeaning(quizKorean) || quizKorean || "한국어 뜻 준비 중")
-      : (quizKorean || "한국어 뜻 준비 중"));
+      : (quizKorean || "한국어 뜻 준비 중");
+
+    if (isRecallEnglish) {
+      elements.flashcard.classList.add("is-recall-en");
+      elements.studyWord.textContent = chinese;
+      elements.studyWord.setAttribute("lang", "zh-CN");
+      elements.studyPhonetic.textContent = korean;
+      elements.studyPhonetic.setAttribute("lang", "ko");
+      elements.studyPhonetic.hidden = false;
+      elements.studyPartOfSpeech.hidden = true;
+    } else {
+      elements.flashcard.classList.remove("is-recall-en");
+      setText(elements.studyWord, word.word || "…");
+      setText(elements.studyPhonetic, phonetic);
+      setText(elements.studyPartOfSpeech, partOfSpeech);
+      elements.studyPhonetic.hidden = !phonetic;
+      elements.studyPartOfSpeech.hidden = !partOfSpeech;
+    }
+    elements.recallPrompt.innerHTML = `${escapeHtml(prompt)}<br><span>${escapeHtml(hint)}</span>`;
+
+    setText(elements.chineseMeaning, chinese);
+    setText(elements.koreanMeaning, korean);
     setText(elements.englishExample, word.englishExample || "Example coming soon.");
     setText(elements.koreanExample, word.koreanExample || "예문 준비 중입니다.");
     setText(elements.quizFeedback, "");
     elements.quizFeedback.hidden = true;
 
-    if (isRecall) {
+    if (isRecallEnglish) {
+      renderRecallEnglishOptions();
+    } else if (isRecall) {
       renderRecallOptions();
     } else {
       renderMeaningOptions(word);
@@ -1855,10 +2123,28 @@
     state.__quizOptions = [];
     elements.quizOptions.innerHTML = `
       <button class="quiz-option recall-option" type="button" data-recall="know">
+        <kbd>1</kbd>
         <span class="quiz-option-copy"><span class="quiz-option-zh">记得</span><span class="quiz-option-ko" lang="ko">기억나요</span></span>
       </button>
       <button class="quiz-option recall-option" type="button" data-recall="unknown">
+        <kbd>2</kbd>
         <span class="quiz-option-copy"><span class="quiz-option-zh">不记得</span><span class="quiz-option-ko" lang="ko">기억 안 나요</span></span>
+      </button>`;
+    elements.quizOptions.querySelectorAll(".quiz-option").forEach((button) => {
+      button.addEventListener("click", () => answerRecall(button.dataset.recall === "know"));
+    });
+  }
+
+  function renderRecallEnglishOptions() {
+    state.__quizOptions = [];
+    elements.quizOptions.innerHTML = `
+      <button class="quiz-option recall-option" type="button" data-recall="know">
+        <kbd>1</kbd>
+        <span class="quiz-option-copy"><span class="quiz-option-zh">想起来</span><span class="quiz-option-ko" lang="ko">생각났어요</span></span>
+      </button>
+      <button class="quiz-option recall-option" type="button" data-recall="unknown">
+        <kbd>2</kbd>
+        <span class="quiz-option-copy"><span class="quiz-option-zh">想不起来</span><span class="quiz-option-ko" lang="ko">생각 안 나요</span></span>
       </button>`;
     elements.quizOptions.querySelectorAll(".quiz-option").forEach((button) => {
       button.addEventListener("click", () => answerRecall(button.dataset.recall === "know"));
@@ -1914,7 +2200,9 @@
     const stage = word.__learnStage;
     setText(elements.quizFeedback, stage === LEARN_STAGE_RECALL
       ? (knows ? "记得，已安排下一次复习。" : "没关系，这个词稍后会再出现。")
-      : (knows ? "记得，继续保持。" : "没关系，这个词会重新加入本组学习。"));
+      : (stage === LEARN_STAGE_REVIEW2
+        ? (knows ? "想起来了，这个单词已掌握。" : "没关系，这个词会重新加入本组学习。")
+        : (knows ? "记得，继续保持。" : "没关系，这个词会重新加入本组学习。")));
     elements.quizFeedback.hidden = false;
     window.requestAnimationFrame(() => {
       elements.flashcard.classList.add("is-revealed");
@@ -1951,15 +2239,15 @@
         && (item.__learnStage === LEARN_STAGE_REVIEW1 || item.__learnStage === LEARN_STAGE_REVIEW2)
     );
     if (hasRecallAhead) return;
-    insertReviewRandomly(state.queue, word, LEARN_STAGE_REVIEW1);
-    insertReviewRandomly(state.queue, word, LEARN_STAGE_REVIEW2);
+    insertReviewRandomly(state.queue, word, LEARN_STAGE_REVIEW1, 2);
+    insertReviewRandomly(state.queue, word, LEARN_STAGE_REVIEW2, 3);
   }
 
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  function insertReviewRandomly(queue, word, stage) {
+  function insertReviewRandomly(queue, word, stage, preferredGap) {
     const key = sessionWordKey(word);
     let lastIndex = -1;
     queue.forEach((item, index) => {
@@ -1975,9 +2263,15 @@
       }
       candidates.push(index);
     }
-    const position = candidates.length > 0
-      ? candidates[randomInt(0, candidates.length - 1)]
-      : queue.length;
+    const gap = Number.isFinite(preferredGap)
+      ? preferredGap
+      : randomInt(1, Math.max(1, queue.length - minIndex + 1));
+    const target = minIndex + gap;
+    if (candidates.length > 1) {
+      candidates.sort((a, b) => Math.abs(a - target) - Math.abs(b - target));
+    }
+    const pool = candidates.slice(0, Math.min(2, candidates.length));
+    const position = pool.length > 0 ? pool[randomInt(0, pool.length - 1)] : queue.length;
     queue.splice(position, 0, { ...createQueueItem(word), __learnStage: stage });
   }
 
@@ -2519,7 +2813,7 @@
     elements.themeToggle.setAttribute("aria-label", dark ? "切换为浅色模式" : "切换为深色模式");
     setText(elements.themeToggleLabel, dark ? "深色" : "浅色");
     if (elements.themeColorMeta) {
-      elements.themeColorMeta.setAttribute("content", dark ? "#101512" : "#f4f2eb");
+      elements.themeColorMeta.setAttribute("content", dark ? "#10111f" : "#edf0f8");
     }
   }
 
@@ -2655,4 +2949,236 @@
   function wait(milliseconds) {
     return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
   }
+})();
+
+/* ==========================================================================
+   Memory Lab delight layer — self-contained, hooks existing DOM only.
+   Does not touch the app's internal state or API logic.
+   ========================================================================== */
+(() => {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = window.matchMedia("(pointer: fine)").matches;
+  const counters = new WeakMap();
+  const animating = new WeakSet();
+  const observed = new WeakSet();
+
+  const colors = ["#ff3d68", "#ffb703", "#0fa58f", "#4c6ef5", "#3a3c72", "#ffffff"];
+
+  function ready(callback) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", callback, { once: true });
+    } else {
+      callback();
+    }
+  }
+
+  function celebrate(count = 90) {
+    if (reduced) return;
+    const canvas = document.createElement("canvas");
+    canvas.className = "confetti-layer";
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+    const particles = Array.from({ length: count }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 5 + Math.random() * 7;
+      return {
+        x: canvas.width / 2,
+        y: canvas.height * 0.55,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 4,
+        size: 5 + Math.random() * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.3
+      };
+    });
+    const started = performance.now();
+    function frame(now) {
+      const progress = (now - started) / 1400;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((particle) => {
+        particle.vy += 0.18;
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.rot += particle.vr;
+        const alpha = Math.min(1, (1 - progress) * 1.6);
+        ctx.save();
+        ctx.translate(particle.x, particle.y);
+        ctx.rotate(particle.rot);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size * 0.62);
+        ctx.restore();
+      });
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        canvas.remove();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function animateCount(element) {
+    if (!element || animating.has(element)) return;
+    const raw = (element.textContent || "").trim().replace(/[^\d]/g, "");
+    if (!raw) return;
+    const target = parseInt(raw, 10);
+    const previous = counters.get(element);
+    counters.set(element, target);
+    if (previous == null || previous === target) return;
+    if (reduced) {
+      element.textContent = target.toLocaleString("en-US");
+      return;
+    }
+    animating.add(element);
+    const started = performance.now();
+    const duration = 520;
+    function frame(now) {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      element.textContent = Math.round(previous + (target - previous) * eased).toLocaleString("en-US");
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        animating.delete(element);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function observeCount(element, extraCallback) {
+    if (!element || observed.has(element)) return;
+    observed.add(element);
+    const observer = new MutationObserver(() => {
+      animateCount(element);
+      if (typeof extraCallback === "function") extraCallback();
+    });
+    observer.observe(element, { childList: true, characterData: true, subtree: true });
+  }
+
+  function syncStreakFlame() {
+    const count = document.querySelector("#streakCount");
+    const card = count && count.closest(".stat-card");
+    if (!card) return;
+    const value = parseInt((count.textContent || "").replace(/[^\d]/g, ""), 10) || 0;
+    card.classList.toggle("is-streak", value > 0);
+    const flame = card.querySelector(".streak-flame");
+    if (value > 0 && !flame) {
+      const span = document.createElement("span");
+      span.className = "streak-flame";
+      span.setAttribute("aria-hidden", "true");
+      card.appendChild(span);
+    } else if (value <= 0 && flame) {
+      flame.remove();
+    }
+  }
+
+  function pulseFlame() {
+    const flame = document.querySelector(".streak-flame");
+    if (!flame || reduced) return;
+    flame.animate(
+      [
+        { transform: "scale(.8)" },
+        { transform: "scale(1.55) rotate(-8deg)" },
+        { transform: "scale(1)" }
+      ],
+      { duration: 520, easing: "ease-out" }
+    );
+  }
+
+  function setupHeroTilt() {
+    const visual = document.querySelector(".hero-visual");
+    if (!visual || !finePointer || reduced) return;
+    visual.addEventListener("pointermove", (event) => {
+      const rect = visual.getBoundingClientRect();
+      const mx = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+      const my = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+      visual.classList.remove("is-settling");
+      visual.style.transform = `perspective(820px) rotateX(${(-my * 7).toFixed(2)}deg) rotateY(${(mx * 7).toFixed(2)}deg)`;
+    });
+    visual.addEventListener("pointerleave", () => {
+      visual.classList.add("is-settling");
+      visual.style.transform = "perspective(820px) rotateX(0deg) rotateY(0deg)";
+      window.setTimeout(() => visual.classList.remove("is-settling"), 400);
+    });
+  }
+
+  function setupCardTilt() {
+    const card = document.querySelector("#flashcard");
+    const stage = document.querySelector("#studyStage");
+    if (!card || !stage || !finePointer || reduced) return;
+    stage.addEventListener("pointermove", (event) => {
+      if (stage.hidden || card.hidden) return;
+      if (card.classList.contains("card-leaving") || card.classList.contains("card-entering")) return;
+      const rect = card.getBoundingClientRect();
+      const mx = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+      const my = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+      card.classList.remove("is-settling");
+      card.style.transform = `rotateX(${(-my * 4).toFixed(2)}deg) rotateY(${(mx * 5).toFixed(2)}deg)`;
+    });
+    stage.addEventListener("pointerleave", () => {
+      card.classList.add("is-settling");
+      card.style.transform = "rotateX(0deg) rotateY(0deg)";
+      window.setTimeout(() => card.classList.remove("is-settling"), 260);
+    });
+  }
+
+  function setupCelebrations() {
+    const complete = document.querySelector("#studyComplete");
+    if (complete) {
+      const observer = new MutationObserver(() => {
+        if (!complete.hidden) celebrate(110);
+      });
+      observer.observe(complete, { attributes: true, attributeFilter: ["hidden"] });
+    }
+
+    const toastRegion = document.querySelector("#toastRegion");
+    if (toastRegion) {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (
+              node.nodeType === 1 &&
+              node.classList.contains("toast") &&
+              !node.classList.contains("is-error") &&
+              /签到成功/.test(node.textContent)
+            ) {
+              celebrate(70);
+              pulseFlame();
+            }
+          });
+        });
+      });
+      observer.observe(toastRegion, { childList: true });
+    }
+  }
+
+  function setupRatingPop() {
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rating]");
+      if (!button) return;
+      button.classList.remove("is-popping");
+      void button.offsetWidth;
+      button.classList.add("is-popping");
+      button.addEventListener("animationend", () => button.classList.remove("is-popping"), {
+        once: true
+      });
+    });
+  }
+
+  ready(() => {
+    observeCount(document.querySelector("#dueCount"));
+    observeCount(document.querySelector("#todayLearnedCount"));
+    observeCount(document.querySelector("#masteredCount"));
+    observeCount(document.querySelector("#dailyProgressCount"));
+    observeCount(document.querySelector("#streakCount"), syncStreakFlame);
+    syncStreakFlame();
+    setupHeroTilt();
+    setupCardTilt();
+    setupCelebrations();
+    setupRatingPop();
+  });
 })();

@@ -30,9 +30,10 @@ public class StudyController {
     @GetMapping("/queue")
     public ApiResponse<List<WordCardResponse>> queue(
             @RequestParam(defaultValue = "1") long bookId,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "mixed") String type
     ) {
-        return ApiResponse.ok(studyService.queue(bookId, currentUser.userId(), limit));
+        return ApiResponse.ok(studyService.queue(bookId, currentUser.userId(), limit, type));
     }
 
     @PostMapping("/reviews")
